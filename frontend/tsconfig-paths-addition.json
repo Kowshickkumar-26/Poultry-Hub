@@ -1,0 +1,9 @@
+{
+  "//": "Add this 'paths' block inside compilerOptions in your tsconfig.json (and tsconfig.app.json if Vite generated a split config), so '@/...' imports resolve to src/...",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}

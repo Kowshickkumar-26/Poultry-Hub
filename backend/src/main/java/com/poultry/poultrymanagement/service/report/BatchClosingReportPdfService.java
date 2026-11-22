@@ -68,7 +68,7 @@ public class BatchClosingReportPdfService {
     private static final Font FONT_VALUE_BOLD = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, TEXT_DARK);
 
     // Formatters
-    private static final DecimalFormat CURRENCY_FMT = new DecimalFormat("$#,##0.00");
+    private static final DecimalFormat CURRENCY_FMT = new DecimalFormat("'Rs. '#,##0.00");
     private static final DecimalFormat NUMBER_FMT = new DecimalFormat("#,##0");
     private static final DecimalFormat DECIMAL_FMT = new DecimalFormat("#,##0.00");
     private static final DecimalFormat FCR_FMT = new DecimalFormat("0.000");
@@ -662,7 +662,7 @@ public class BatchClosingReportPdfService {
         table.setHeaderRows(1);
         table.setSpacingAfter(14);
 
-        addTableHeader(table, new String[]{"Date", "Expense Category", "Amount ($)", "Description"});
+        addTableHeader(table, new String[]{"Date", "Expense Category", "Amount (Rs.)", "Description"});
 
         BigDecimal totalExpenses = BigDecimal.ZERO;
         boolean isAlt = false;

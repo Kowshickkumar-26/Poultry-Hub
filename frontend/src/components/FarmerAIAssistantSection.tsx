@@ -15,14 +15,9 @@ import {
   Trash2,
   Sparkles,
   Stethoscope,
-  TrendingDown,
   Scale,
   Wheat,
-  Flame,
-  ShieldCheck,
-  AlertTriangle,
-  BookOpen,
-  ShieldAlert,
+  Calendar,
 } from "lucide-react";
 
 let messageCounter = 0;
@@ -34,26 +29,27 @@ function createMessageId(prefix: string): string {
 const DASHBOARD_WELCOME_MESSAGE: ChatMessage = {
   id: "welcome-msg",
   sender: "ai",
-  text: "👋 **Hello! I'm your Poultry AI Assistant.**\n\nI analyze your live flock telemetry (mortality, feed stock, bird weight, and FCR) alongside veterinary knowledge. Ask me any question about your flock or pick a quick prompt below!",
+  text: "👋 **Hello! I'm your Poultry AI Assistant.**\n\nI answer exact questions directly from your **MySQL database records** (Day-by-day mortality, bird weight, feed stock, FCR, and vaccines). Try asking *'Tell the mortality on day 8 of our current batch'* or click a prompt below!",
   timestamp: "Today",
-  category: "Flock Assistant",
+  category: "Grounded Database Assistant",
   suggestions: [
-    "Analyze my current batch",
+    "Tell the mortality on day 8 of our current batch",
+    "What was the mortality on day 9?",
+    "What is the current live bird count?",
     "Check today's mortality",
     "Analyze my bird weight & FCR",
-    "How is my feed stock holding up?",
-    "Tips to manage heat stress",
+    "Check my feed stock",
   ],
 };
 
 const QUICK_PROMPTS = [
-  { label: "Analyze Batch", prompt: "Analyze my current batch performance and status", icon: Activity, color: "hover:border-emerald-500 hover:text-emerald-900" },
-  { label: "Mortality Check", prompt: "Check today's mortality and cumulative trend", icon: TrendingDown, color: "hover:border-rose-500 hover:text-rose-900" },
+  { label: "Last Feed Load", prompt: "When was the last feed stock loaded?", icon: Wheat, color: "hover:border-amber-500 hover:text-amber-900" },
+  { label: "Feed Stock Balance", prompt: "Check my feed stock and days remaining", icon: Wheat, color: "hover:border-amber-500 hover:text-amber-900" },
+  { label: "Day 8 Mortality", prompt: "Tell the mortality on day 8 of our current batch", icon: Calendar, color: "hover:border-emerald-500 hover:text-emerald-900" },
+  { label: "Live Bird Count", prompt: "What is the current live bird count?", icon: Activity, color: "hover:border-emerald-500 hover:text-emerald-900" },
+  { label: "Batch Summary", prompt: "Give me a summary of our current batch", icon: Sparkles, color: "hover:border-indigo-500 hover:text-indigo-900" },
   { label: "Weight & FCR", prompt: "Analyze my bird weight and FCR trajectory", icon: Scale, color: "hover:border-blue-500 hover:text-blue-900" },
-  { label: "Feed Stock", prompt: "Check my feed stock and days remaining", icon: Wheat, color: "hover:border-amber-500 hover:text-amber-900" },
-  { label: "Heat Stress", prompt: "How to handle heat stress in broiler house?", icon: Flame, color: "hover:border-orange-500 hover:text-orange-900" },
-  { label: "Clinical Check", prompt: "What are warning signs of respiratory infection in flock?", icon: Stethoscope, color: "hover:border-teal-500 hover:text-teal-900" },
-  { label: "Medication Guide", prompt: "How to calculate medication dosage safely for poultry?", icon: ShieldCheck, color: "hover:border-indigo-500 hover:text-indigo-900" },
+  { label: "Vaccine History", prompt: "What vaccines have been administered?", icon: Stethoscope, color: "hover:border-teal-500 hover:text-teal-900" },
 ];
 
 export function FarmerAIAssistantSection() {
@@ -85,8 +81,8 @@ export function FarmerAIAssistantSection() {
       const aiReply: ChatMessage = {
         id: createMessageId("ai"),
         sender: "ai",
-        text: data.answer || "Flock analysis completed.",
-        category: data.category || "Clinical Consultation",
+        text: data.answer || "Flock query completed.",
+        category: data.category || "Database Query",
         keyInsights: data.keyInsights || [],
         possibleCauses: data.possibleCauses || [],
         recommendedActions: data.recommendedActions || [],
@@ -101,12 +97,12 @@ export function FarmerAIAssistantSection() {
     },
     onError: (error) => {
       const errorText = isAxiosError(error)
-        ? error.response?.data?.message || "Sorry, I encountered an issue analyzing your farm data."
+        ? error.response?.data?.message || "Sorry, I encountered an issue retrieving your farm data."
         : "Failed to connect to AI Assistant.";
       const aiReply: ChatMessage = {
         id: createMessageId("ai-err"),
         sender: "ai",
-        text: "⚠️ **System Notice:** " + errorText + "\n\nPlease try again or check your connection.",
+        text: "⚠️ **Notice:** " + errorText + "\n\nPlease try again or check your active batch.",
         category: "Error Notice",
         timestamp: "Just now",
       };
@@ -147,13 +143,13 @@ export function FarmerAIAssistantSection() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-white">AI Assistant / Veterinary Chatbot</h3>
+              <h3 className="text-base font-bold text-white">AI Assistant (Database Grounded)</h3>
               <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 ring-1 ring-emerald-400/30">
-                Live Farm Telemetry Grounded
+                Live MySQL Data
               </span>
             </div>
             <p className="text-xs text-emerald-100/70">
-              Ask questions about flock health, daily mortality, FCR, feed planning, and disease prevention.
+              Ask questions about daily mortality, feed consumption, bird weight, FCR, and flock history.
             </p>
           </div>
         </div>
@@ -212,21 +208,13 @@ export function FarmerAIAssistantSection() {
                   : "border border-slate-200 bg-white text-slate-900"
               }`}
             >
-              {/* Category & Vet Alert */}
-              {msg.sender === "ai" && (
+              {/* Category */}
+              {msg.sender === "ai" && msg.category && (
                 <div className="flex flex-wrap items-center gap-2 mb-2">
-                  {msg.category && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
-                      <Activity size={10} className="text-emerald-600" />
-                      {msg.category}
-                    </span>
-                  )}
-                  {msg.requiresVeterinarian && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 border border-rose-300 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-rose-800 animate-pulse">
-                      <ShieldAlert size={11} className="text-rose-600" />
-                      Vet Consultation Recommended
-                    </span>
-                  )}
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                    <Activity size={10} className="text-emerald-600" />
+                    {msg.category}
+                  </span>
                 </div>
               )}
 
@@ -239,40 +227,10 @@ export function FarmerAIAssistantSection() {
                 </div>
               )}
 
-              {/* Differential Diagnoses */}
-              {msg.possibleCauses && msg.possibleCauses.length > 0 && (
-                <div className="mt-3 rounded-xl bg-amber-50/90 p-2.5 border border-amber-200 text-xs">
-                  <div className="flex items-center gap-1.5 font-bold text-amber-900 mb-1">
-                    <AlertTriangle size={13} className="text-amber-600" /> Differential Potential:
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {msg.possibleCauses.map((cause, i) => (
-                      <span key={i} className="rounded-md bg-white px-2 py-0.5 font-semibold text-amber-800 border border-amber-200 text-[11px]">
-                        {cause}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Citations */}
-              {msg.sources && msg.sources.length > 0 && (
-                <div className="mt-2.5 rounded-xl bg-slate-50 p-2 border border-slate-200 text-[11px] text-slate-600">
-                  <div className="flex items-center gap-1 font-bold text-slate-800 mb-0.5">
-                    <BookOpen size={12} className="text-emerald-600" /> Verified References:
-                  </div>
-                  <ul className="list-disc pl-4 space-y-0.5">
-                    {msg.sources.map((src, i) => (
-                      <li key={i}>{src}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
               {/* Suggestions */}
               {msg.suggestions && msg.suggestions.length > 0 && (
                 <div className="mt-3 border-t border-slate-100 pt-2">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Suggested Follow-ups:</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Related Inquiries:</p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {msg.suggestions.map((sug, i) => (
                       <button
@@ -317,7 +275,7 @@ export function FarmerAIAssistantSection() {
                 <div className="h-2 w-2 animate-bounce rounded-full bg-emerald-600 delay-150"></div>
                 <div className="h-2 w-2 animate-bounce rounded-full bg-emerald-600 delay-300"></div>
               </div>
-              <span className="text-xs font-semibold text-slate-600">Analyzing live farm records & veterinary database...</span>
+              <span className="text-xs font-semibold text-slate-600">Querying MySQL database & generating grounded response...</span>
             </div>
           </div>
         )}
@@ -333,7 +291,7 @@ export function FarmerAIAssistantSection() {
             value={inputPrompt}
             onChange={(e) => setInputPrompt(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
-            placeholder="Ask AI about mortality spikes, feed conversion, bird weight, vaccination, or heat stress..."
+            placeholder="Ask about mortality on day 8, bird weight, feed stock, FCR, or vaccines..."
             disabled={aiMutation.isPending}
             className="flex-1 rounded-xl bg-slate-50 text-xs md:text-sm shadow-2xs border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 h-10 md:h-11"
           />

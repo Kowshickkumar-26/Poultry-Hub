@@ -427,16 +427,16 @@ export default function FarmerEndBatchPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Total Sales Revenue:</span>
-                    <span className="font-bold text-emerald-700">${totalSalesRevenue.toLocaleString()}</span>
+                    <span className="font-bold text-emerald-700">₹{totalSalesRevenue.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Total Operational Expenses:</span>
-                    <span className="font-bold text-rose-600">${totalExpenses.toLocaleString()}</span>
+                    <span className="font-bold text-rose-600">₹{totalExpenses.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between border-t border-slate-100 pt-3">
                     <span className="font-bold text-slate-900">Net Operational Margin:</span>
                     <span className={`font-black ${netMargin >= 0 ? "text-emerald-700" : "text-rose-600"}`}>
-                      ${netMargin.toLocaleString()}
+                      ₹{netMargin.toLocaleString()}
                     </span>
                   </div>
                 </div>

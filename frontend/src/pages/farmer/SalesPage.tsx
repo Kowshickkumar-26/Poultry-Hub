@@ -155,7 +155,7 @@ export default function FarmerSalesPage() {
                     <DollarSign size={18} />
                   </div>
                 </div>
-                <p className="mt-3 text-2xl font-black text-emerald-700">${totalRevenue.toLocaleString()}</p>
+                <p className="mt-3 text-2xl font-black text-emerald-700">₹{totalRevenue.toLocaleString()}</p>
                 <p className="mt-1 text-xs text-slate-500">{sales.length} sales transactions</p>
               </Card>
             </div>
@@ -254,13 +254,13 @@ export default function FarmerSalesPage() {
 
                   <div className="space-y-1.5">
                     <Label htmlFor="ratePerKg" className="text-xs font-bold text-slate-700">
-                      Rate per kg ($) <span className="text-rose-500">*</span>
+                      Rate per kg (₹) <span className="text-rose-500">*</span>
                     </Label>
                     <Input
                       id="ratePerKg"
                       type="number"
                       step="0.01"
-                      placeholder="e.g. 2.50"
+                      placeholder="e.g. 110.00"
                       className="rounded-xl"
                       {...register("ratePerKg", { valueAsNumber: true })}
                     />
@@ -291,7 +291,7 @@ export default function FarmerSalesPage() {
                   </div>
                   <div>
                     <span className="text-slate-500">Estimated Transaction Revenue:</span>
-                    <span className="ml-2 font-black text-emerald-700">${estimatedRevenue}</span>
+                    <span className="ml-2 font-black text-emerald-700">₹{estimatedRevenue}</span>
                   </div>
                 </div>
 
@@ -334,8 +334,8 @@ export default function FarmerSalesPage() {
                         <th className="py-3 px-3">No. of Birds</th>
                         <th className="py-3 px-3">Net Weight (kg)</th>
                         <th className="py-3 px-3">Avg Wt / Bird</th>
-                        <th className="py-3 px-3">Rate / kg</th>
-                        <th className="py-3 px-3">Total Revenue</th>
+                        <th className="py-3 px-3">Rate / kg (₹)</th>
+                        <th className="py-3 px-3">Total Revenue (₹)</th>
                         <th className="py-3 px-3">Lifting Signature</th>
                       </tr>
                     </thead>
@@ -348,8 +348,8 @@ export default function FarmerSalesPage() {
                           <td className="py-2.5 px-3 font-bold text-slate-900">{sale.birdsSold}</td>
                           <td className="py-2.5 px-3 text-slate-800">{sale.totalWeightKg} kg</td>
                           <td className="py-2.5 px-3 text-slate-700">{sale.avgWeightPerBirdKg} kg</td>
-                          <td className="py-2.5 px-3 text-slate-700">${sale.ratePerKg}</td>
-                          <td className="py-2.5 px-3 font-black text-emerald-700">${sale.revenue?.toLocaleString()}</td>
+                          <td className="py-2.5 px-3 text-slate-700">₹{sale.ratePerKg}</td>
+                          <td className="py-2.5 px-3 font-black text-emerald-700">₹{sale.revenue?.toLocaleString()}</td>
                           <td className="py-2.5 px-3 text-slate-600 italic">{sale.liftingSignature || "—"}</td>
                         </tr>
                       ))}

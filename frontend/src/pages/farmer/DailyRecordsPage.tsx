@@ -56,18 +56,43 @@ export default function FarmerDailyRecordsPage() {
 
   const availableStockKg = feedStock?.currentStockKg ?? 0;
 
+  // Check if today's record has already been logged
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  const todayRecord = useMemo(() => {
+    return records.find((r) => r.recordDate === todayStr);
+  }, [records, todayStr]);
+
+  const latestRecord = useMemo(
+    () => (records.length > 0 ? records[records.length - 1] : null),
+    [records]
+  );
+
+
   // Previous metrics
   const totalMortalityBeforeToday = useMemo(() => {
-    return records.reduce((sum, r) => sum + (r.mortality || 0), 0);
-  }, [records]);
+    return records.reduce((sum, r) => {
+      if (todayRecord && r.id === todayRecord.id) return sum;
+      return sum + (r.mortality || 0);
+    }, 0);
+  }, [records, todayRecord]);
 
   const currentLiveBirdsBeforeToday = activeBatch
     ? Math.max(0, activeBatch.initialBirds - totalMortalityBeforeToday)
     : 0;
 
   const totalFeedConsumedBeforeToday = useMemo(() => {
-    return records.reduce((sum, r) => sum + (r.feedConsumedKg || 0), 0);
-  }, [records]);
+    return records.reduce((sum, r) => {
+      if (todayRecord && r.id === todayRecord.id) return sum;
+      return sum + (r.feedConsumedKg || 0);
+    }, 0);
+  }, [records, todayRecord]);
 
   const {
     register,
@@ -142,18 +167,18 @@ export default function FarmerDailyRecordsPage() {
 
   // Live estimated FCR
   const liveEstimatedFcr = useMemo(() => {
-    if (!watchedAvgWeight || watchedAvgWeight <= 0 || liveRemainingBirds <= 0 || !activeBatch) {
+    const weight = watchedAvgWeight || latestRecord?.avgWeightG;
+    if (!weight || weight <= 0 || liveRemainingBirds <= 0) {
       return null;
     }
     const cumulativeFeed = totalFeedConsumedBeforeToday + liveTodaysFeedKg;
-    const currentTotalWeightGainKg =
-      (watchedAvgWeight / 1000) * liveRemainingBirds - 0.04 * activeBatch.initialBirds;
-    if (currentTotalWeightGainKg <= 0 || cumulativeFeed <= 0) return null;
-    return (cumulativeFeed / currentTotalWeightGainKg).toFixed(3);
+    const currentTotalWeightKg = (weight / 1000) * liveRemainingBirds;
+    if (currentTotalWeightKg <= 0 || cumulativeFeed <= 0) return null;
+    return (cumulativeFeed / currentTotalWeightKg).toFixed(2);
   }, [
     watchedAvgWeight,
+    latestRecord?.avgWeightG,
     liveRemainingBirds,
-    activeBatch,
     totalFeedConsumedBeforeToday,
     liveTodaysFeedKg,
   ]);
@@ -228,7 +253,6 @@ export default function FarmerDailyRecordsPage() {
   }
 
   // Latest Record for Summary Card
-  const latestRecord = records.length > 0 ? records[records.length - 1] : null;
 
   if (isBatchLoading) {
     return (
@@ -336,9 +360,20 @@ export default function FarmerDailyRecordsPage() {
               <div className="lg:col-span-7">
                 <Card className="rounded-2xl border-slate-200 bg-white p-6 md:p-7 shadow-sm">
                   <div className="mb-6 border-b border-slate-100 pb-4">
-                    <h3 className="text-base font-bold text-slate-900">Record Today's Entry</h3>
-                    <p className="text-xs text-slate-500">
-                      Enter today's mortality, feed bags used, and average bird weight. All cumulative metrics and FCR are calculated automatically.
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base font-bold text-slate-900">
+                        {todayRecord ? `Update Today's Entry (Day ${todayRecord.ageDays ?? currentAge})` : "Record Today's Entry"}
+                      </h3>
+                      {todayRecord && (
+                        <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800">
+                          Already Logged Today
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {todayRecord
+                        ? `A record for today (${todayRecord.recordDate}) already exists. Submitting updates today's telemetry.`
+                        : "Enter today's mortality, feed bags used, and average bird weight. All cumulative metrics and FCR are calculated automatically."}
                     </p>
                   </div>
 
@@ -512,7 +547,11 @@ export default function FarmerDailyRecordsPage() {
                         }
                         className="rounded-xl bg-emerald-600 px-7 py-2.5 font-bold text-white hover:bg-emerald-700 shadow-md transition disabled:opacity-50"
                       >
-                        {addRecordMutation.isPending ? "Saving Record..." : "+ Save Daily Record"}
+                        {addRecordMutation.isPending
+                          ? "Saving Record..."
+                          : todayRecord
+                          ? `Update Today's Record (Day ${todayRecord.ageDays ?? currentAge})`
+                          : "+ Save Daily Record"}
                       </Button>
                     </div>
                   </form>
@@ -603,7 +642,7 @@ export default function FarmerDailyRecordsPage() {
                       </div>
                       <div className="bg-slate-50 p-2.5 rounded-xl">
                         <span className="text-[10px] uppercase text-slate-400 font-semibold block">FCR</span>
-                        <span className="font-bold text-blue-700">{latestRecord.fcr ?? "—"}</span>
+                        <span className="font-bold text-blue-700">{latestRecord.fcr != null ? Number(latestRecord.fcr).toFixed(2) : "—"}</span>
                       </div>
                     </div>
                   </Card>
@@ -678,7 +717,7 @@ export default function FarmerDailyRecordsPage() {
                           </td>
                           <td className="py-2.5 px-3 text-slate-700">{rec.feedType ?? "—"}</td>
                           <td className="py-2.5 px-3 text-slate-700">{rec.avgWeightG ? `${rec.avgWeightG} g` : "—"}</td>
-                          <td className="py-2.5 px-3 font-bold text-emerald-700">{rec.fcr ?? "—"}</td>
+                          <td className="py-2.5 px-3 font-bold text-emerald-700">{rec.fcr != null ? Number(rec.fcr).toFixed(2) : "—"}</td>
                           <td className="py-2.5 px-3 max-w-[150px] truncate text-slate-500" title={rec.notes || ""}>
                             {rec.notes || "—"}
                           </td>

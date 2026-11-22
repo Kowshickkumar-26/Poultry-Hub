@@ -262,5 +262,19 @@ class DailyRecordAndFeedManagementIntegrationTest {
         assertThat(starter70.getAvailableBags()).isEqualByComparingTo(BigDecimal.valueOf(3));
         assertThat(starter70.getAvailableKg()).isEqualByComparingTo(BigDecimal.valueOf(210));
         assertThat(starter70.getStockStatus()).isEqualTo("NORMAL");
+
+        // 13. Test upsert behavior: adding a daily record on an already recorded date updates the entry without error
+        DailyRecordRequest updateRecord = DailyRecordRequest.builder()
+                .recordDate(batchEntity.getStartDate().plusDays(1))
+                .mortality(4)
+                .feedBagsConsumed(BigDecimal.valueOf(1))
+                .bagCapacityKg(BigDecimal.valueOf(50))
+                .feedType("Starter")
+                .avgWeightG(BigDecimal.valueOf(120))
+                .build();
+        DailyRecordResponse upsertRes = dailyRecordService.addDailyRecord(batch1Id, updateRecord, user1Id);
+        assertThat(upsertRes).isNotNull();
+        assertThat(upsertRes.getMortality()).isEqualTo(4);
+        assertThat(upsertRes.getAvgWeightG()).isEqualByComparingTo(BigDecimal.valueOf(120));
     }
 }

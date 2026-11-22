@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import { getActiveBatches, getCompletedBatches } from "@/lib/api/batches";
-import { askAiAssistant } from "@/lib/api/ai";
+import { sendChatMessage } from "@/lib/api/ai";
 import { AppLayout } from "@/components/AppLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,7 @@ export default function CEOAIAssistantPage() {
   const totalActiveBirds = active.reduce((acc, b) => acc + (b.initialBirds || 0), 0);
 
   const [inputPrompt, setInputPrompt] = useState("");
+  const [conversationId, setConversationId] = useState<number | undefined>(undefined);
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_CEO_MESSAGE]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -63,8 +64,16 @@ export default function CEOAIAssistantPage() {
   }, [messages]);
 
   const aiMutation = useMutation({
-    mutationFn: (prompt: string) => askAiAssistant(prompt),
+    mutationFn: (promptText: string) =>
+      sendChatMessage({
+        prompt: promptText,
+        conversationId,
+      }),
     onSuccess: (data: AiQueryResponse) => {
+      if (data.conversationId && !conversationId) {
+        setConversationId(data.conversationId);
+      }
+
       const aiReply: ChatMessage = {
         id: createMessageId("ai-ceo"),
         sender: "ai",
@@ -111,6 +120,7 @@ export default function CEOAIAssistantPage() {
 
   const handleClearChat = () => {
     setMessages([INITIAL_CEO_MESSAGE]);
+    setConversationId(undefined);
   };
 
   const ceoPrompts = [

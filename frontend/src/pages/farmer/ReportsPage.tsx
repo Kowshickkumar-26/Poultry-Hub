@@ -250,10 +250,10 @@ export default function FarmerReportsPage() {
                 </div>
                 <div className="mt-3">
                   <p className={`text-2xl font-black ${netProfit >= 0 ? "text-emerald-700" : "text-rose-600"}`}>
-                    ${netProfit.toLocaleString()}
+                    ₹{netProfit.toLocaleString()}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Rev: ${totalRevenue.toLocaleString()} • Exp: ${totalExpenses.toLocaleString()}
+                    Rev: ₹{totalRevenue.toLocaleString()} • Exp: ₹{totalExpenses.toLocaleString()}
                   </p>
                 </div>
               </Card>
@@ -302,15 +302,15 @@ export default function FarmerReportsPage() {
                   </div>
                   <div className="flex justify-between py-2">
                     <span className="text-slate-500 font-medium">Gross Sales Revenue</span>
-                    <span className="font-bold text-emerald-700">${totalRevenue.toLocaleString()}</span>
+                    <span className="font-bold text-emerald-700">₹{totalRevenue.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between py-2">
                     <span className="text-slate-500 font-medium">Total Farm Expenses</span>
-                    <span className="font-bold text-rose-600">${totalExpenses.toLocaleString()}</span>
+                    <span className="font-bold text-rose-600">₹{totalExpenses.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between py-2">
                     <span className="text-slate-500 font-medium">Latest Feed Conversion Ratio (FCR)</span>
-                    <span className="font-bold text-blue-700">{latestRecord?.fcr ?? "N/A"}</span>
+                    <span className="font-bold text-blue-700">{latestRecord?.fcr != null ? Number(latestRecord.fcr).toFixed(2) : "N/A"}</span>
                   </div>
                   <div className="flex justify-between py-2">
                     <span className="text-slate-500 font-medium">Latest Average Bird Weight</span>

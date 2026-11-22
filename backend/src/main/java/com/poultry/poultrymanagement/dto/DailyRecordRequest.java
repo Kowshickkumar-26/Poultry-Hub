@@ -1,5 +1,6 @@
 package com.poultry.poultrymanagement.dto;
 
+import com.fasterxml.jackson.annotation.JsonSetter;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -21,6 +22,21 @@ public class DailyRecordRequest {
 
     // Optional: Defaults to current date on backend if not supplied
     private LocalDate recordDate;
+
+    @JsonSetter("recordDate")
+    public void parseRecordDate(Object rawDate) {
+        if (rawDate == null) {
+            this.recordDate = null;
+        } else if (rawDate instanceof LocalDate ld) {
+            this.recordDate = ld;
+        } else if (rawDate instanceof String str) {
+            if (str.trim().isEmpty()) {
+                this.recordDate = null;
+            } else {
+                this.recordDate = LocalDate.parse(str.trim());
+            }
+        }
+    }
 
     @PositiveOrZero
     private Integer morningMortality;

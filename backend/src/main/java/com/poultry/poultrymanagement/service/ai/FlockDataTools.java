@@ -40,7 +40,7 @@ public class FlockDataTools {
 
         Batch batch = batchOpt.get();
         List<DailyRecord> records = dailyRecordRepository.findByBatchIdOrderByRecordDateAsc(batchId);
-        FeedStock feedStock = feedStockRepository.findByBatchId(batchId).orElse(null);
+        List<FeedLoad> loads = feedLoadRepository.findByBatchIdOrderByLoadDateAsc(batchId);
 
         int totalMortality = records.stream().mapToInt(DailyRecord::getMortality).sum();
         int remainingBirds = Math.max(0, batch.getInitialBirds() - totalMortality);
@@ -49,8 +49,19 @@ public class FlockDataTools {
         DailyRecord latest = records.isEmpty() ? null : records.get(records.size() - 1);
         BigDecimal avgWeight = latest != null && latest.getAvgWeightG() != null ? latest.getAvgWeightG() : null;
         BigDecimal fcr = latest != null && latest.getFcr() != null ? latest.getFcr() : null;
-        BigDecimal stockKg = feedStock != null ? feedStock.getCurrentStockKg() : BigDecimal.ZERO;
-        BigDecimal stockBags = feedStock != null ? feedStock.getCurrentBags() : BigDecimal.ZERO;
+
+        // Accurate mathematical flock feed calculation
+        BigDecimal totalLoadedKg = loads.stream()
+                .map(FeedLoad::getTotalWeightKg)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalConsumedKg = records.stream()
+                .map(r -> r.getFeedConsumedKg() != null ? r.getFeedConsumedKg() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal stockKg = totalLoadedKg.subtract(totalConsumedKg);
+        if (stockKg.compareTo(BigDecimal.ZERO) < 0) stockKg = BigDecimal.ZERO;
+        BigDecimal stockBags = stockKg.divide(BigDecimal.valueOf(50), 1, RoundingMode.HALF_UP);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("batchId", batch.getId());
@@ -68,6 +79,72 @@ public class FlockDataTools {
         result.put("totalDailyRecordsLogged", records.size());
 
         return result;
+    }
+
+    @Tool("Get exact daily record for a specific flock day (e.g. Day 1, Day 8, Day 25).")
+    @Transactional(readOnly = true)
+    public Map<String, Object> getDayRecord(
+            @P("The ID of the batch/flock") Long batchId,
+            @P("The day number/age of the flock (e.g. 1, 8, 25)") int dayNumber
+    ) {
+        if (batchId == null) return Map.of("error", "Batch ID cannot be null");
+        if (dayNumber < 1) return Map.of("error", "Day number must be positive");
+
+        Optional<Batch> batchOpt = batchRepository.findById(batchId);
+        if (batchOpt.isEmpty()) return Map.of("error", "Batch not found for ID: " + batchId);
+
+        Batch batch = batchOpt.get();
+        if (batch.getStartDate() == null) {
+            return Map.of("error", "Batch start date is missing");
+        }
+
+        LocalDate targetDate = batch.getStartDate().plusDays(dayNumber - 1);
+        Optional<DailyRecord> recordOpt = dailyRecordRepository.findByBatchIdAndRecordDate(batchId, targetDate);
+
+        if (recordOpt.isEmpty()) {
+            List<DailyRecord> allRecords = dailyRecordRepository.findByBatchIdOrderByRecordDateAsc(batchId);
+            recordOpt = allRecords.stream()
+                    .filter(r -> {
+                        int age = (int) ChronoUnit.DAYS.between(batch.getStartDate(), r.getRecordDate()) + 1;
+                        return age == dayNumber;
+                    })
+                    .findFirst();
+        }
+
+        if (recordOpt.isEmpty()) {
+            return Map.of(
+                    "found", false,
+                    "batchCode", batch.getBatchCode(),
+                    "requestedDay", dayNumber,
+                    "message", "I couldn't find that record in the current batch."
+            );
+        }
+
+        DailyRecord r = recordOpt.get();
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("found", true);
+        map.put("batchId", batch.getId());
+        map.put("batchCode", batch.getBatchCode());
+        map.put("dayNumber", dayNumber);
+        map.put("recordDate", r.getRecordDate().toString());
+        map.put("mortality", r.getMortality());
+        map.put("morningMortality", r.getMorningMortality() != null ? r.getMorningMortality() : 0);
+        map.put("afternoonMortality", Math.max(0, r.getMortality() - (r.getMorningMortality() != null ? r.getMorningMortality() : 0)));
+        map.put("cumulativeMortality", r.getCumulativeMortality());
+        map.put("cumulativeMortalityPercentage", r.getCumulativeMortalityPct() != null ? r.getCumulativeMortalityPct() : 0.0);
+        map.put("remainingBirds", r.getRemainingBirds());
+        map.put("feedConsumedKg", r.getFeedConsumedKg() != null ? r.getFeedConsumedKg() : BigDecimal.ZERO);
+        map.put("feedBagsConsumed", r.getFeedBagsConsumed() != null ? r.getFeedBagsConsumed() : BigDecimal.ZERO);
+        map.put("feedType", r.getFeedType() != null ? r.getFeedType() : "Standard");
+        map.put("averageWeightG", r.getAvgWeightG() != null ? r.getAvgWeightG() : "Not recorded");
+        map.put("minBodyWeightG", r.getMinBodyWeightG() != null ? r.getMinBodyWeightG() : "Not recorded");
+        map.put("fcr", r.getFcr() != null ? r.getFcr() : "Not calculated");
+        map.put("standardFcr", r.getStandardFcr() != null ? r.getStandardFcr() : "N/A");
+        map.put("closingFeedStockBags", r.getFeedBagsClosingStock() != null ? r.getFeedBagsClosingStock() : "N/A");
+        map.put("signature", r.getSignature() != null ? r.getSignature() : "");
+        map.put("notes", r.getNotes() != null ? r.getNotes() : "");
+
+        return map;
     }
 
     @Tool("Get recent daily mortality records and trend analysis over the past N days.")
@@ -156,42 +233,74 @@ public class FlockDataTools {
         return result;
     }
 
-    @Tool("Get feed deliveries, daily feed consumption, and current feed stock inventory.")
+    @Tool("Get feed deliveries, latest delivery record, daily feed consumption, and exact feed stock inventory.")
     @Transactional(readOnly = true)
     public Map<String, Object> getFeedStockAndConsumption(@P("The ID of the batch/flock") Long batchId) {
         if (batchId == null) return Map.of("error", "Batch ID cannot be null");
 
-        FeedStock feedStock = feedStockRepository.findByBatchId(batchId).orElse(null);
         List<FeedLoad> loads = feedLoadRepository.findByBatchIdOrderByLoadDateAsc(batchId);
         List<DailyRecord> records = dailyRecordRepository.findByBatchIdOrderByRecordDateAsc(batchId);
 
         BigDecimal totalLoadedKg = loads.stream()
-                .map(l -> l.getBags().multiply(l.getWeightPerBagKg() != null ? l.getWeightPerBagKg() : BigDecimal.valueOf(50)))
+                .map(FeedLoad::getTotalWeightKg)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalLoadedBags = loads.stream()
+                .map(l -> l.getBags() != null ? l.getBags() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal totalConsumedKg = records.stream()
                 .map(r -> r.getFeedConsumedKg() != null ? r.getFeedConsumedKg() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        DailyRecord latest = records.isEmpty() ? null : records.get(records.size() - 1);
-        BigDecimal latestDailyFeedKg = latest != null && latest.getFeedConsumedKg() != null ? latest.getFeedConsumedKg() : BigDecimal.ZERO;
+        BigDecimal totalConsumedBags = totalConsumedKg.divide(BigDecimal.valueOf(50), 1, RoundingMode.HALF_UP);
 
-        BigDecimal stockKg = feedStock != null ? feedStock.getCurrentStockKg() : totalLoadedKg.subtract(totalConsumedKg);
+        // Strict mathematical calculation: Remaining Stock = Total Loaded - Total Consumed
+        BigDecimal stockKg = totalLoadedKg.subtract(totalConsumedKg);
         if (stockKg.compareTo(BigDecimal.ZERO) < 0) stockKg = BigDecimal.ZERO;
+        BigDecimal stockBags = stockKg.divide(BigDecimal.valueOf(50), 1, RoundingMode.HALF_UP);
+
+        DailyRecord latestRecord = records.isEmpty() ? null : records.get(records.size() - 1);
+        BigDecimal latestDailyFeedKg = latestRecord != null && latestRecord.getFeedConsumedKg() != null ? latestRecord.getFeedConsumedKg() : BigDecimal.ZERO;
 
         int daysRemaining = 0;
         if (latestDailyFeedKg.compareTo(BigDecimal.ZERO) > 0 && stockKg.compareTo(BigDecimal.ZERO) > 0) {
             daysRemaining = stockKg.divide(latestDailyFeedKg, 0, RoundingMode.FLOOR).intValue();
         }
 
+        // Build itemized delivery list
+        List<Map<String, Object>> deliveryHistory = new ArrayList<>();
+        java.time.format.DateTimeFormatter humanDateFmt = java.time.format.DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH);
+        for (FeedLoad l : loads) {
+            BigDecimal bagWeight = l.getWeightPerBagKg() != null ? l.getWeightPerBagKg() : BigDecimal.valueOf(50);
+            BigDecimal totalWt = l.getBags() != null ? l.getBags().multiply(bagWeight) : BigDecimal.ZERO;
+            Map<String, Object> dm = new LinkedHashMap<>();
+            dm.put("id", l.getId());
+            dm.put("date", l.getLoadDate().toString());
+            dm.put("formattedDate", humanDateFmt.format(l.getLoadDate()));
+            dm.put("feedType", l.getFeedType());
+            dm.put("bags", l.getBags());
+            dm.put("weightPerBagKg", bagWeight);
+            dm.put("totalWeightKg", totalWt);
+            deliveryHistory.add(dm);
+        }
+
+        Map<String, Object> latestDelivery = deliveryHistory.isEmpty() ? null : deliveryHistory.get(deliveryHistory.size() - 1);
+
         Map<String, Object> result = new LinkedHashMap<>();
+        result.put("batchId", batchId);
         result.put("totalLoadedKg", totalLoadedKg);
+        result.put("totalLoadedBags", totalLoadedBags);
         result.put("totalConsumedKg", totalConsumedKg);
+        result.put("totalConsumedBags", totalConsumedBags);
         result.put("currentStockKg", stockKg);
-        result.put("currentStockBags", feedStock != null ? feedStock.getCurrentBags() : stockKg.divide(BigDecimal.valueOf(50), 1, RoundingMode.HALF_UP));
+        result.put("currentStockBags", stockBags);
         result.put("latestDailyIntakeKg", latestDailyFeedKg);
         result.put("estimatedDaysOfFeedRemaining", daysRemaining);
         result.put("isStockLow", stockKg.compareTo(BigDecimal.valueOf(200)) <= 0);
+        result.put("latestDelivery", latestDelivery);
+        result.put("deliveries", deliveryHistory);
+        result.put("totalDeliveriesCount", deliveryHistory.size());
 
         return result;
     }

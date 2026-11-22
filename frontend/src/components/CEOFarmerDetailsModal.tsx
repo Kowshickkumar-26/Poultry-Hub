@@ -48,9 +48,13 @@ export function CEOFarmerDetailsModal({
     setDownloadError(null);
     try {
       await downloadBatchClosingReport(batchId, batchCode);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to download closing report", err);
-      setDownloadError(err?.response?.data?.message || "Failed to download Closing Report PDF.");
+      const message =
+        err && typeof err === "object" && "response" in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      setDownloadError(message || "Failed to download Closing Report PDF.");
     } finally {
       setDownloadingBatchId(null);
     }

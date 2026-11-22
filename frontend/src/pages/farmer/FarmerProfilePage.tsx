@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -81,19 +81,6 @@ export default function FarmerProfilePage() {
     queryFn: getBatchHistory,
   });
 
-  // Populate form state when profile data arrives
-  useEffect(() => {
-    if (farmerProfile || userProfile) {
-      setFormData({
-        name: userProfile?.name || farmerProfile?.userName || user?.name || "",
-        phone: userProfile?.phone || farmerProfile?.userPhone || user?.phone || "",
-        farmName: farmerProfile?.farmName || "",
-        farmLocation: farmerProfile?.farmLocation || "",
-        farmDescription: farmerProfile?.farmDescription || "",
-      });
-    }
-  }, [farmerProfile, userProfile, user]);
-
   // Mutation to update profile
   const updateMutation = useMutation({
     mutationFn: (data: FarmerProfileUpdateRequest) => updateMyFarmerProfile(data),
@@ -113,10 +100,12 @@ export default function FarmerProfilePage() {
       setIsEditModalOpen(false);
       setFormErrors({});
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       const errMsg =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
+        (err && typeof err === "object" && "response" in err
+          ? (err as { response?: { data?: { message?: string; error?: string } } }).response?.data?.message ||
+            (err as { response?: { data?: { message?: string; error?: string } } }).response?.data?.error
+          : undefined) ||
         "Failed to update profile. Please review the inputs and try again.";
       addToast("Update Failed", errMsg, "error");
     },

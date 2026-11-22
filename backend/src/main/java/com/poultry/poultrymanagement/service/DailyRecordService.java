@@ -65,8 +65,11 @@ public class DailyRecordService {
         if (recordDate.isAfter(LocalDate.now())) {
             throw new IllegalArgumentException("Record date cannot be in the future");
         }
-        if (dailyRecordRepository.findByBatchIdAndRecordDate(batchId, recordDate).isPresent()) {
-            throw new IllegalStateException("A daily record for this batch and date (" + recordDate + ") already exists");
+
+        // If a record for this batch and date already exists, seamlessly update it (upsert)
+        Optional<DailyRecord> existingRecordOpt = dailyRecordRepository.findByBatchIdAndRecordDate(batchId, recordDate);
+        if (existingRecordOpt.isPresent()) {
+            return updateDailyRecord(batchId, existingRecordOpt.get().getId(), request, loggedInUserId);
         }
 
         Optional<DailyRecord> previous = dailyRecordRepository.findTopByBatchIdOrderByRecordDateDesc(batchId);
@@ -142,7 +145,20 @@ public class DailyRecordService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal cumulativeFeedKg = previousConsumedKg.add(todaysFeedKg);
-        BigDecimal fcr = calculateFcr(cumulativeFeedKg, request.getAvgWeightG(), remainingBirds, batch.getInitialBirds());
+
+        final int finalAgeDays = Math.max(1, (int) ChronoUnit.DAYS.between(batch.getStartDate(), recordDate) + 1);
+
+        BigDecimal effectiveWeightG = request.getAvgWeightG();
+        if (effectiveWeightG == null || effectiveWeightG.compareTo(BigDecimal.ZERO) <= 0) {
+            effectiveWeightG = existingRecords.stream()
+                    .filter(r -> r.getAvgWeightG() != null && r.getAvgWeightG().compareTo(BigDecimal.ZERO) > 0)
+                    .reduce((first, second) -> second)
+                    .map(DailyRecord::getAvgWeightG)
+                    .orElseGet(() -> getStandardWeightGForAge(finalAgeDays));
+        }
+
+        BigDecimal standardFcr = request.getStandardFcr() != null ? request.getStandardFcr() : getStandardFcrForAge(finalAgeDays);
+        BigDecimal fcr = calculateFcr(cumulativeFeedKg, effectiveWeightG, remainingBirds);
 
         DailyRecord record = DailyRecord.builder()
                 .batch(batch)
@@ -161,7 +177,7 @@ public class DailyRecordService {
                 .cumulativeFeedActualKg(request.getCumulativeFeedActualKg() != null ? request.getCumulativeFeedActualKg() : cumulativeFeedKg)
                 .minBodyWeightG(request.getMinBodyWeightG())
                 .avgWeightG(request.getAvgWeightG())
-                .standardFcr(request.getStandardFcr())
+                .standardFcr(standardFcr)
                 .fcr(fcr)
                 .feedBagsTotal(request.getFeedBagsTotal())
                 .feedBagsClosingStock(request.getFeedBagsClosingStock())
@@ -277,6 +293,7 @@ public class DailyRecordService {
 
         int cumulativeMortality = 0;
         BigDecimal cumulativeFeed = BigDecimal.ZERO;
+        BigDecimal lastKnownWeight = null;
         for (DailyRecord item : records) {
             cumulativeMortality += (item.getMortality() != null ? item.getMortality() : 0);
             item.setCumulativeMortality(cumulativeMortality);
@@ -288,7 +305,23 @@ public class DailyRecordService {
             }
             cumulativeFeed = cumulativeFeed.add(item.getFeedConsumedKg() != null ? item.getFeedConsumedKg() : BigDecimal.ZERO);
             item.setCumulativeFeedActualKg(cumulativeFeed);
-            item.setFcr(calculateFcr(cumulativeFeed, item.getAvgWeightG(), item.getRemainingBirds(), batch.getInitialBirds()));
+
+            long age = ChronoUnit.DAYS.between(batch.getStartDate(), item.getRecordDate()) + 1;
+            if (age < 1) age = 1;
+            if (item.getStandardFcr() == null) {
+                item.setStandardFcr(getStandardFcrForAge((int) age));
+            }
+
+            BigDecimal effWeight = item.getAvgWeightG();
+            if (effWeight != null && effWeight.compareTo(BigDecimal.ZERO) > 0) {
+                lastKnownWeight = effWeight;
+            } else if (lastKnownWeight != null) {
+                effWeight = lastKnownWeight;
+            } else {
+                effWeight = getStandardWeightGForAge((int) age);
+            }
+
+            item.setFcr(calculateFcr(cumulativeFeed, effWeight, item.getRemainingBirds()));
             dailyRecordRepository.save(item);
         }
 
@@ -373,6 +406,7 @@ public class DailyRecordService {
 
         int cumulativeMortality = 0;
         BigDecimal cumulativeFeed = BigDecimal.ZERO;
+        BigDecimal lastKnownWeight = null;
         for (DailyRecord item : records) {
             cumulativeMortality += (item.getMortality() != null ? item.getMortality() : 0);
             item.setCumulativeMortality(cumulativeMortality);
@@ -384,33 +418,71 @@ public class DailyRecordService {
             }
             cumulativeFeed = cumulativeFeed.add(item.getFeedConsumedKg() != null ? item.getFeedConsumedKg() : BigDecimal.ZERO);
             item.setCumulativeFeedActualKg(cumulativeFeed);
-            item.setFcr(calculateFcr(cumulativeFeed, item.getAvgWeightG(), item.getRemainingBirds(), batch.getInitialBirds()));
+
+            long age = ChronoUnit.DAYS.between(batch.getStartDate(), item.getRecordDate()) + 1;
+            if (age < 1) age = 1;
+            if (item.getStandardFcr() == null) {
+                item.setStandardFcr(getStandardFcrForAge((int) age));
+            }
+
+            BigDecimal effWeight = item.getAvgWeightG();
+            if (effWeight != null && effWeight.compareTo(BigDecimal.ZERO) > 0) {
+                lastKnownWeight = effWeight;
+            } else if (lastKnownWeight != null) {
+                effWeight = lastKnownWeight;
+            } else {
+                effWeight = getStandardWeightGForAge((int) age);
+            }
+
+            item.setFcr(calculateFcr(cumulativeFeed, effWeight, item.getRemainingBirds()));
             dailyRecordRepository.save(item);
         }
 
         feedLoadService.syncFeedStock(batchId);
     }
 
-    private BigDecimal calculateFcr(BigDecimal cumulativeFeedKg, BigDecimal avgWeightG, int remainingBirds, int initialBirds) {
-        if (avgWeightG == null || remainingBirds <= 0 || cumulativeFeedKg == null || cumulativeFeedKg.compareTo(BigDecimal.ZERO) <= 0) {
+    public static BigDecimal getStandardWeightGForAge(int ageDays) {
+        if (ageDays <= 1) return BigDecimal.valueOf(42);
+        if (ageDays <= 7) return BigDecimal.valueOf(42 + (ageDays - 1) * 25);
+        if (ageDays <= 14) return BigDecimal.valueOf(192 + (ageDays - 7) * 44);
+        if (ageDays <= 21) return BigDecimal.valueOf(500 + (ageDays - 14) * 74);
+        if (ageDays <= 28) return BigDecimal.valueOf(1018 + (ageDays - 21) * 98);
+        if (ageDays <= 35) return BigDecimal.valueOf(1704 + (ageDays - 28) * 106);
+        return BigDecimal.valueOf(2446 + (ageDays - 35) * 100);
+    }
+
+    public static BigDecimal getStandardFcrForAge(int ageDays) {
+        if (ageDays <= 1) return BigDecimal.valueOf(0.750);
+        if (ageDays <= 7) {
+            return BigDecimal.valueOf(0.750 + (ageDays - 1) * (0.950 - 0.750) / 6.0).setScale(3, RoundingMode.HALF_UP);
+        } else if (ageDays <= 14) {
+            return BigDecimal.valueOf(0.950 + (ageDays - 7) * (1.150 - 0.950) / 7.0).setScale(3, RoundingMode.HALF_UP);
+        } else if (ageDays <= 21) {
+            return BigDecimal.valueOf(1.150 + (ageDays - 14) * (1.300 - 1.150) / 7.0).setScale(3, RoundingMode.HALF_UP);
+        } else if (ageDays <= 28) {
+            return BigDecimal.valueOf(1.300 + (ageDays - 21) * (1.450 - 1.300) / 7.0).setScale(3, RoundingMode.HALF_UP);
+        } else if (ageDays <= 35) {
+            return BigDecimal.valueOf(1.450 + (ageDays - 28) * (1.600 - 1.450) / 7.0).setScale(3, RoundingMode.HALF_UP);
+        } else {
+            return BigDecimal.valueOf(1.600 + Math.min(ageDays - 35, 14) * (1.800 - 1.600) / 7.0).setScale(3, RoundingMode.HALF_UP);
+        }
+    }
+
+    private BigDecimal calculateFcr(BigDecimal cumulativeFeedKg, BigDecimal effectiveWeightG, int remainingBirds) {
+        if (effectiveWeightG == null || effectiveWeightG.compareTo(BigDecimal.ZERO) <= 0 || remainingBirds <= 0
+                || cumulativeFeedKg == null || cumulativeFeedKg.compareTo(BigDecimal.ZERO) <= 0) {
             return null;
         }
 
-        BigDecimal currentTotalWeightKg = avgWeightG
+        BigDecimal liveBiomassKg = effectiveWeightG
                 .divide(BigDecimal.valueOf(1000), 6, RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(remainingBirds));
 
-        BigDecimal startingTotalWeightKg = CHICK_WEIGHT_G
-                .divide(BigDecimal.valueOf(1000), 6, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(initialBirds));
-
-        BigDecimal totalWeightGainKg = currentTotalWeightKg.subtract(startingTotalWeightKg);
-
-        if (totalWeightGainKg.compareTo(BigDecimal.ZERO) <= 0) {
+        if (liveBiomassKg.compareTo(BigDecimal.ZERO) <= 0) {
             return null;
         }
 
-        return cumulativeFeedKg.divide(totalWeightGainKg, 3, RoundingMode.HALF_UP);
+        return cumulativeFeedKg.divide(liveBiomassKg, 3, RoundingMode.HALF_UP);
     }
 
     private Batch getOwnedBatchOrThrow(Long batchId, Long loggedInUserId) {

@@ -1,8 +1,8 @@
 package com.poultry.poultrymanagement.dto;
 
 import com.poultry.poultrymanagement.entity.Role;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,7 +21,7 @@ public class RegisterRequest {
     private String name;
 
     @NotBlank(message = "Email is required")
-    @Email(message = "Invalid email format")
+    @Pattern(regexp = "^[\\s]*[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z0-9.-]+[\\s]*$", message = "Invalid email format")
     private String email;
 
     @NotBlank(message = "Password is required")

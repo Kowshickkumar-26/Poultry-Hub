@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import type { AiQueryRequest, AiQueryResponse, AiChatRequest, ConversationSummary } from "@/types/ai";
+import type { AiQueryRequest, AiQueryResponse, AiChatRequest, ConversationSummary, ChatMessage } from "@/types/ai";
 
 export async function askAiAssistant(prompt: string): Promise<AiQueryResponse> {
   const response = await api.post<AiQueryResponse>("/api/ai/query", { prompt } as AiQueryRequest);
@@ -16,8 +16,8 @@ export async function getConversations(): Promise<ConversationSummary[]> {
   return response.data;
 }
 
-export async function getConversationHistory(conversationId: number): Promise<{ messages: any[] }> {
-  const response = await api.get<{ messages: any[] }>(`/api/ai/history/${conversationId}`);
+export async function getConversationHistory(conversationId: number): Promise<{ messages: ChatMessage[] }> {
+  const response = await api.get<{ messages: ChatMessage[] }>(`/api/ai/history/${conversationId}`);
   return response.data;
 }
 

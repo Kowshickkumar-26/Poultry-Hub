@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Component
@@ -18,9 +19,19 @@ public class DataInitializer implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
 
     @Override
+    @Transactional
     public void run(String... args) {
         ensureCeoUser("ceo@poultry.local", "Poultry CEO");
-        ensureCeoUser("ceo@dayflow.com", "Executive CEO");
+        ensureFarmerPassword("rajan@poultry.local");
+        ensureFarmerPassword("priya@poultry.local");
+    }
+
+    private void ensureFarmerPassword(String email) {
+        userRepository.findByEmail(email).ifPresent(user -> {
+            user.setPasswordHash(passwordEncoder.encode("farmer123"));
+            userRepository.save(user);
+            log.info("Reset password for farmer: {}", email);
+        });
     }
 
     private void ensureCeoUser(String email, String name) {

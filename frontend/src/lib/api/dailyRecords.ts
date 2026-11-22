@@ -25,3 +25,23 @@ export async function addDailyRecord(
 
   return response.data;
 }
+
+export async function updateDailyRecord(
+  batchId: number,
+  dailyRecordId: number,
+  data: DailyRecordRequest
+): Promise<DailyRecordResponse> {
+  const response = await api.put<DailyRecordResponse>(
+    `/api/batches/${batchId}/daily-records/${dailyRecordId}`,
+    data
+  );
+
+  return response.data;
+}
+
+export async function deleteDailyRecord(
+  batchId: number,
+  dailyRecordId: number
+): Promise<void> {
+  await api.delete(`/api/batches/${batchId}/daily-records/${dailyRecordId}`);
+}

@@ -35,8 +35,11 @@ public class AuthController {
     @Transactional
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new DataIntegrityViolationException("An account with this email (" + request.getEmail() + ") already exists.");
+        String trimmedEmail = request.getEmail() != null ? request.getEmail().trim().toLowerCase() : "";
+        String rawTrimmedEmail = request.getEmail() != null ? request.getEmail().trim() : "";
+
+        if (userRepository.existsByEmail(trimmedEmail) || userRepository.existsByEmail(rawTrimmedEmail)) {
+            throw new DataIntegrityViolationException("An account with this email (" + rawTrimmedEmail + ") already exists.");
         }
 
         Role role = request.getRole() != null ? request.getRole() : Role.FARMER;
@@ -46,12 +49,15 @@ public class AuthController {
             throw new AccessDeniedException("CEO accounts cannot be created via public registration.");
         }
 
+        String cleanedName = request.getName() != null ? request.getName().trim() : "";
+        String cleanedPhone = request.getPhone() != null && !request.getPhone().isBlank() ? request.getPhone().trim() : null;
+
         User user = User.builder()
-                .name(request.getName())
-                .email(request.getEmail())
+                .name(cleanedName)
+                .email(trimmedEmail)
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .role(role)
-                .phone(request.getPhone())
+                .phone(cleanedPhone)
                 .isActive(true)
                 .build();
 
@@ -69,11 +75,16 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        String trimmedEmail = request.getEmail() != null ? request.getEmail().trim() : "";
+        String lowerEmail = trimmedEmail.toLowerCase();
+
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+                new UsernamePasswordAuthenticationToken(trimmedEmail, request.getPassword())
         );
 
-        User user = userRepository.findByEmail(request.getEmail())
+        User user = userRepository.findByEmail(trimmedEmail)
+                .or(() -> userRepository.findByEmail(lowerEmail))
+                .or(() -> userRepository.findByEmail(request.getEmail()))
                 .orElseThrow(() -> new IllegalStateException("User not found after authentication"));
 
         UserPrincipal principal = new UserPrincipal(user);

@@ -185,8 +185,15 @@ public class BatchService {
         return batch;
     }
 
-    private String generateBatchCode() {
-        return "BATCH-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+    private synchronized String generateBatchCode() {
+        long count = batchRepository.count();
+        long nextNum = count + 1;
+        String code;
+        do {
+            code = String.format("BATCH-%02d", nextNum);
+            nextNum++;
+        } while (batchRepository.findByBatchCode(code).isPresent());
+        return code;
     }
 
     private BatchResponse toResponse(Batch batch) {

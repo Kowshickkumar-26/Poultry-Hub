@@ -27,35 +27,37 @@ export default function LoginPage() {
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
   });
-
-  // async function onSubmit(values: LoginFormValues) {
-  //   setServerError(null);
-  //   try {
-  //     await login(values);
-  //     navigate("/dashboard");
-  //   } catch (err: any) {
-  //     // Matches the backend's actual error message for bad credentials
-  //     // rather than a generic "something went wrong".
-  //     setServerError(
-  //       err.response?.data?.message ?? "Invalid email or password."
-  //     );
-  //   }
-  // }
 
   async function onSubmit(values: LoginFormValues) {
     setServerError(null);
     try {
-      await login(values);
+      await login({
+        email: values.email.trim().toLowerCase(),
+        password: values.password,
+      });
       navigate("/dashboard");
     } catch (err: unknown) {
       if (isAxiosError(err)) {
-        setServerError(err.response?.data?.message ?? "Invalid email or password.");
+        if (!err.response) {
+          setServerError("Unable to connect to the backend server. Please verify the server is running on port 8080.");
+        } else if (err.response.status === 401) {
+          setServerError(err.response.data?.message || "Invalid email or password.");
+        } else {
+          setServerError(err.response.data?.message || "Login failed. Please check your credentials.");
+        }
+      } else if (err instanceof Error) {
+        setServerError(err.message);
       } else {
         setServerError("Invalid email or password.");
       }
     }
   }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
       <Card className="w-full max-w-sm">
@@ -82,14 +84,16 @@ export default function LoginPage() {
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" {...register("password")} />
+              <Input id="password" type="password" placeholder="••••••••" {...register("password")} />
               {errors.password && (
                 <p className="text-sm text-destructive">{errors.password.message}</p>
               )}
             </div>
 
             {serverError && (
-              <p className="text-sm text-destructive">{serverError}</p>
+              <p className="text-sm text-destructive rounded-md bg-destructive/10 p-2.5 font-medium">
+                {serverError}
+              </p>
             )}
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>
@@ -108,4 +112,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

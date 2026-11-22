@@ -120,7 +120,7 @@ export default function CEOReportsPage() {
     }
 
     list.sort((a, b) => {
-      let comparison = 0;
+      let comparison: number;
       switch (sortField) {
         case "fcr": {
           const fcrA = a.avgFcr ?? 999;
@@ -157,7 +157,7 @@ export default function CEOReportsPage() {
     });
 
     return list;
-  }, [report?.farmRankings, searchQuery, sortField, sortOrder]);
+  }, [report, searchQuery, sortField, sortOrder]);
 
   const handleExportCsv = () => {
     if (!report) return;
@@ -412,7 +412,7 @@ export default function CEOReportsPage() {
 
                 <DashboardCard
                   title="Gross Revenue"
-                  value={`$${report.networkKpis.totalRevenue.toLocaleString()}`}
+                  value={`₹${report.networkKpis.totalRevenue.toLocaleString()}`}
                   subtitle="From completed sales"
                   icon={<DollarSign size={20} />}
                 />
@@ -524,7 +524,7 @@ export default function CEOReportsPage() {
                               onClick={() => handleSort("revenue")}
                               className="inline-flex items-center gap-1 font-bold text-slate-700 hover:text-emerald-700"
                             >
-                              Revenue
+                              Revenue (₹)
                               <ArrowUpDown size={12} />
                             </button>
                           </th>
@@ -626,7 +626,7 @@ export default function CEOReportsPage() {
                               </td>
 
                               <td className="px-4 py-3.5 text-right font-bold text-slate-900">
-                                ${farm.totalRevenue.toLocaleString()}
+                                ₹{farm.totalRevenue.toLocaleString()}
                               </td>
 
                               <td className="px-4 py-3.5 text-center">
@@ -697,7 +697,7 @@ export default function CEOReportsPage() {
                           <th className="px-4 py-3.5 text-right">Latest Weight</th>
                           <th className="px-4 py-3.5 text-right">FCR</th>
                           <th className="px-4 py-3.5 text-right">Feed Consumed</th>
-                          <th className="px-4 py-3.5 text-right">Revenue</th>
+                          <th className="px-4 py-3.5 text-right">Revenue (₹)</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-slate-800">
@@ -760,7 +760,7 @@ export default function CEOReportsPage() {
                               {b.totalFeedConsumedKg.toLocaleString()} kg
                             </td>
                             <td className="px-4 py-3.5 text-right font-bold text-slate-900">
-                              ${b.totalRevenue.toLocaleString()}
+                              ₹{b.totalRevenue.toLocaleString()}
                             </td>
                           </tr>
                         ))}

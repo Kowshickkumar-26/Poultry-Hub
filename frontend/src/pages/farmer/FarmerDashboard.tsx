@@ -786,7 +786,7 @@ export default function FarmerDashboard() {
                 <div className="mt-3.5 space-y-2.5 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-600">Total Sales Revenue</span>
-                    <span className="font-bold text-emerald-700">${totalSalesRevenue.toLocaleString()}</span>
+                    <span className="font-bold text-emerald-700">₹{totalSalesRevenue.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-slate-600">Total Birds Sold</span>
@@ -794,12 +794,12 @@ export default function FarmerDashboard() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-slate-600">Total Batch Expenses</span>
-                    <span className="font-bold text-rose-600">${totalExpenses.toLocaleString()}</span>
+                    <span className="font-bold text-rose-600">₹{totalExpenses.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
                     <span className="font-semibold text-slate-800">Estimated Net Margin</span>
                     <span className={`font-black ${netProfit >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                      ${netProfit.toLocaleString()}
+                      ₹{netProfit.toLocaleString()}
                     </span>
                   </div>
                 </div>

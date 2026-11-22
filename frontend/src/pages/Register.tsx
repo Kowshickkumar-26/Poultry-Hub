@@ -35,20 +35,43 @@ export default function RegisterPage() {
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      phone: "",
+      role: "FARMER",
+    },
   });
 
   async function onSubmit(values: RegisterFormValues) {
     setServerError(null);
     try {
-      await registerUser(values);
+      await registerUser({
+        name: values.name.trim(),
+        email: values.email.trim().toLowerCase(),
+        password: values.password,
+        phone: values.phone?.trim() || undefined,
+        role: "FARMER",
+      });
       navigate("/dashboard");
     } catch (err: unknown) {
       if (isAxiosError(err)) {
-        if (err.response?.status === 409 || err.response?.status === 400) {
-          setServerError("An account with this email already exists.");
+        if (!err.response) {
+          setServerError("Unable to connect to the backend server. Please verify the server is running.");
+        } else if (err.response.status === 409) {
+          setServerError(
+            err.response.data?.message || "An account with this email already exists. Please sign in or use a different email."
+          );
+        } else if (err.response.status === 400) {
+          setServerError(
+            err.response.data?.message || "Invalid registration information. Please check your inputs."
+          );
         } else {
-          setServerError(err.response?.data?.message || "Registration failed. Please try again.");
+          setServerError(err.response.data?.message || "Registration failed. Please try again.");
         }
+      } else if (err instanceof Error) {
+        setServerError(err.message);
       } else {
         setServerError("Registration failed. Please try again.");
       }
@@ -68,7 +91,7 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Full name</Label>
-              <Input id="name" {...register("name")} />
+              <Input id="name" placeholder="John Farmer" {...register("name")} />
               {errors.name && (
                 <p className="text-sm text-destructive">{errors.name.message}</p>
               )}
@@ -76,7 +99,7 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" {...register("email")} />
+              <Input id="email" type="email" placeholder="farmer@example.com" {...register("email")} />
               {errors.email && (
                 <p className="text-sm text-destructive">{errors.email.message}</p>
               )}
@@ -84,7 +107,7 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" {...register("password")} />
+              <Input id="password" type="password" placeholder="At least 6 characters" {...register("password")} />
               {errors.password && (
                 <p className="text-sm text-destructive">{errors.password.message}</p>
               )}
@@ -96,7 +119,7 @@ export default function RegisterPage() {
                 name="role"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value ?? null}>
+                  <Select onValueChange={field.onChange} value={field.value || "FARMER"}>
                     <SelectTrigger id="role">
                       <SelectValue placeholder="Select your role" />
                     </SelectTrigger>
@@ -113,14 +136,16 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <Label htmlFor="phone">Phone (optional)</Label>
-              <Input id="phone" type="tel" {...register("phone")} />
+              <Input id="phone" type="tel" placeholder="e.g. 9876543210" {...register("phone")} />
               {errors.phone && (
                 <p className="text-sm text-destructive">{errors.phone.message}</p>
               )}
             </div>
 
             {serverError && (
-              <p className="text-sm text-destructive">{serverError}</p>
+              <p className="text-sm text-destructive rounded-md bg-destructive/10 p-2.5 font-medium">
+                {serverError}
+              </p>
             )}
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>

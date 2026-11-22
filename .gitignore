@@ -24,3 +24,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# SQL seed/scratch files
+sample_*.sql
+scratch/

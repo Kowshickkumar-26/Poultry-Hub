@@ -328,4 +328,28 @@ class AiAssistantComprehensiveIntegrationTest {
         AiQueryResponse responseB = aiAssistantService.processQuery("Analyze my current batch", userBId);
         assertThat(responseB.getAnswer()).contains("5,000");
     }
+
+    @Test
+    @Transactional
+    @DisplayName("9. Last Feed Stock Loaded Temporal Query")
+    void testLastFeedStockLoadedTemporalQuery() {
+        BatchResponse batch = batchService.createBatch(BatchRequest.builder()
+                .farmId(farmerA.getFarm().getId())
+                .initialBirds(1000)
+                .build(), userAId);
+
+        feedLoadService.addFeedLoad(batch.getId(), FeedLoadRequest.builder()
+                .loadDate(LocalDate.of(2026, 9, 27))
+                .feedType("Finisher")
+                .bags(BigDecimal.valueOf(100))
+                .weightPerBagKg(BigDecimal.valueOf(50))
+                .build(), userAId);
+
+        AiQueryResponse response = aiAssistantService.processQuery("When was the last feed stock loaded?", userAId);
+
+        assertThat(response.getCategory()).isEqualTo("Feed Deliveries & Logistics");
+        assertThat(response.getAnswer()).contains("September 27, 2026");
+        assertThat(response.getAnswer()).contains("100 Finisher bags");
+        assertThat(response.getAnswer()).contains("5,000 kg");
+    }
 }

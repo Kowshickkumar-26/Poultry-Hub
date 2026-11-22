@@ -172,27 +172,29 @@ public class FeedLoadService {
             }
         }
 
+        // Exact mathematical flock feed stock balance (Total Loaded - Total Consumed)
+        BigDecimal exactStockKg = totalLoadedKg.subtract(totalConsumedKg);
+        if (exactStockKg.compareTo(BigDecimal.ZERO) < 0) {
+            exactStockKg = BigDecimal.ZERO;
+        }
+        if (exactStockKg.scale() > 0 && exactStockKg.stripTrailingZeros().scale() <= 0) {
+            exactStockKg = exactStockKg.setScale(0, RoundingMode.HALF_UP);
+        }
+
         // Build itemized capacity-aware inventory
         List<FeedInventoryItemDto> inventory = buildItemizedInventory(loads, records);
 
-        BigDecimal totalAvailableKg = inventory.stream()
-                .map(FeedInventoryItemDto::getAvailableKg)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (totalAvailableKg.scale() > 0 && totalAvailableKg.stripTrailingZeros().scale() <= 0) {
-            totalAvailableKg = totalAvailableKg.setScale(0, RoundingMode.HALF_UP);
-        }
-
-        BigDecimal totalAvailableBags = inventory.stream()
+        BigDecimal exactStockBags = inventory.stream()
                 .map(FeedInventoryItemDto::getAvailableBags)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (totalAvailableBags.scale() > 0 && totalAvailableBags.stripTrailingZeros().scale() <= 0) {
-            totalAvailableBags = totalAvailableBags.setScale(0, RoundingMode.HALF_UP);
+        if (exactStockBags.scale() > 0 && exactStockBags.stripTrailingZeros().scale() <= 0) {
+            exactStockBags = exactStockBags.setScale(0, RoundingMode.HALF_UP);
         }
 
         return FeedStockResponse.builder()
                 .batchId(batchId)
-                .currentBags(totalAvailableBags)
-                .currentStockKg(totalAvailableKg)
+                .currentBags(exactStockBags)
+                .currentStockKg(exactStockKg)
                 .totalLoadedKg(totalLoadedKg)
                 .totalConsumedKg(totalConsumedKg)
                 .preStarterLoadedKg(preStarterLoadedKg)
@@ -336,18 +338,29 @@ public class FeedLoadService {
         List<FeedLoad> loads = feedLoadRepository.findByBatchIdOrderByLoadDateAsc(batchId);
         List<DailyRecord> records = dailyRecordRepository.findByBatchIdOrderByRecordDateAsc(batchId);
 
-        List<FeedInventoryItemDto> inventory = buildItemizedInventory(loads, records);
-
-        BigDecimal totalAvailableKg = inventory.stream()
-                .map(FeedInventoryItemDto::getAvailableKg)
+        BigDecimal totalLoadedKg = loads.stream()
+                .map(FeedLoad::getTotalWeightKg)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal totalAvailableBags = inventory.stream()
+        BigDecimal totalConsumedKg = records.stream()
+                .map(r -> r.getFeedConsumedKg() != null ? r.getFeedConsumedKg() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal exactStockKg = totalLoadedKg.subtract(totalConsumedKg);
+        if (exactStockKg.compareTo(BigDecimal.ZERO) < 0) {
+            exactStockKg = BigDecimal.ZERO;
+        }
+
+        List<FeedInventoryItemDto> inventory = buildItemizedInventory(loads, records);
+        BigDecimal exactStockBags = inventory.stream()
                 .map(FeedInventoryItemDto::getAvailableBags)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (exactStockBags.scale() > 0 && exactStockBags.stripTrailingZeros().scale() <= 0) {
+            exactStockBags = exactStockBags.setScale(0, RoundingMode.HALF_UP);
+        }
 
-        stock.setCurrentStockKg(totalAvailableKg);
-        stock.setCurrentBags(totalAvailableBags);
+        stock.setCurrentStockKg(exactStockKg);
+        stock.setCurrentBags(exactStockBags);
         feedStockRepository.save(stock);
     }
 

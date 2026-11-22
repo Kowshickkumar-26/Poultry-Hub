@@ -39,11 +39,14 @@ export default function FarmerHistoryPage() {
     setDownloadError(null);
     try {
       await downloadBatchClosingReport(batch.id, batch.batchCode);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to download batch closing report", err);
+      const message =
+        err && typeof err === "object" && "response" in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
       setDownloadError(
-        err?.response?.data?.message ||
-        "Failed to generate Batch Closing Report PDF. Please try again."
+        message || "Failed to generate Batch Closing Report PDF. Please try again."
       );
     } finally {
       setDownloadingBatchId(null);
@@ -312,11 +315,11 @@ export default function FarmerHistoryPage() {
                 </div>
                 <div className="rounded-xl bg-slate-50 p-3 border border-slate-100 text-xs">
                   <span className="text-slate-400 uppercase text-[10px]">Sales Revenue</span>
-                  <p className="text-base font-bold text-emerald-700">${totalRevenue.toLocaleString()}</p>
+                  <p className="text-base font-bold text-emerald-700">₹{totalRevenue.toLocaleString()}</p>
                 </div>
                 <div className="rounded-xl bg-slate-50 p-3 border border-slate-100 text-xs">
                   <span className="text-slate-400 uppercase text-[10px]">Expenses</span>
-                  <p className="text-base font-bold text-rose-600">${totalExpensesAmount.toLocaleString()}</p>
+                  <p className="text-base font-bold text-rose-600">₹{totalExpensesAmount.toLocaleString()}</p>
                 </div>
               </div>
 
@@ -346,7 +349,7 @@ export default function FarmerHistoryPage() {
                           <td className="p-2 font-bold text-rose-600">{r.mortality}</td>
                           <td className="p-2 text-slate-700">{r.feedConsumedKg} kg</td>
                           <td className="p-2 text-slate-700">{r.avgWeightG ? `${r.avgWeightG} g` : "—"}</td>
-                          <td className="p-2 font-bold text-emerald-700">{r.fcr ?? "—"}</td>
+                          <td className="p-2 font-bold text-emerald-700">{r.fcr != null ? Number(r.fcr).toFixed(2) : "—"}</td>
                           <td className="p-2 text-slate-500 max-w-[120px] truncate">{r.notes || "—"}</td>
                         </tr>
                       ))}
@@ -368,8 +371,8 @@ export default function FarmerHistoryPage() {
                         <th className="p-2">Trader</th>
                         <th className="p-2">Birds Sold</th>
                         <th className="p-2">Total Weight</th>
-                        <th className="p-2">Rate/kg</th>
-                        <th className="p-2">Revenue</th>
+                        <th className="p-2">Rate/kg (₹)</th>
+                        <th className="p-2">Revenue (₹)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -379,8 +382,8 @@ export default function FarmerHistoryPage() {
                           <td className="p-2 text-slate-700">{s.traderName || "—"}</td>
                           <td className="p-2 font-bold text-slate-900">{s.birdsSold}</td>
                           <td className="p-2 text-slate-700">{s.totalWeightKg} kg</td>
-                          <td className="p-2 text-slate-700">${s.ratePerKg}</td>
-                          <td className="p-2 font-bold text-emerald-700">${s.revenue?.toLocaleString()}</td>
+                          <td className="p-2 text-slate-700">₹{s.ratePerKg}</td>
+                          <td className="p-2 font-bold text-emerald-700">₹{s.revenue?.toLocaleString()}</td>
                         </tr>
                       ))}
                     </tbody>

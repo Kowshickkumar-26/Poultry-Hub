@@ -53,7 +53,7 @@ export function exportReportToCsv(
     "Mortality %",
     "Average FCR",
     "Total Feed (kg)",
-    "Total Revenue ($)",
+    "Total Revenue (INR)",
   ]);
   rows.push([
     String(report.networkKpis.totalFarms),
@@ -65,7 +65,7 @@ export function exportReportToCsv(
     `${report.networkKpis.networkMortalityPct}%`,
     report.networkKpis.averageFcr != null ? String(report.networkKpis.averageFcr) : "N/A",
     String(report.networkKpis.totalFeedConsumedKg),
-    `$${report.networkKpis.totalRevenue.toLocaleString()}`,
+    `₹${report.networkKpis.totalRevenue.toLocaleString()}`,
   ]);
   rows.push([]);
 
@@ -85,7 +85,7 @@ export function exportReportToCsv(
     "Avg Weight (g)",
     "Avg FCR",
     "Feed Consumed (kg)",
-    "Revenue ($)",
+    "Revenue (INR)",
     "Performance Status",
     "Performance Note",
   ]);
@@ -105,7 +105,7 @@ export function exportReportToCsv(
       farm.avgWeightG != null ? `${farm.avgWeightG}g` : "N/A",
       farm.avgFcr != null ? String(farm.avgFcr) : "N/A",
       String(farm.totalFeedConsumedKg),
-      `$${farm.totalRevenue.toLocaleString()}`,
+      `₹${farm.totalRevenue.toLocaleString()}`,
       farm.performanceStatus,
       farm.performanceNote,
     ]);
@@ -129,7 +129,7 @@ export function exportReportToCsv(
     "Latest Avg Weight (g)",
     "Latest FCR",
     "Feed Consumed (kg)",
-    "Revenue ($)",
+    "Revenue (INR)",
   ]);
 
   report.batchReports.forEach((batch) => {
@@ -148,7 +148,7 @@ export function exportReportToCsv(
       batch.latestAvgWeightG != null ? `${batch.latestAvgWeightG}g` : "N/A",
       batch.latestFcr != null ? String(batch.latestFcr) : "N/A",
       String(batch.totalFeedConsumedKg),
-      `$${batch.totalRevenue.toLocaleString()}`,
+      `₹${batch.totalRevenue.toLocaleString()}`,
     ]);
   });
 
@@ -244,7 +244,7 @@ export function exportReportToPdf(
         `${report.networkKpis.totalMortality.toLocaleString()} (${report.networkKpis.networkMortalityPct}%)`,
         report.networkKpis.averageFcr != null ? String(report.networkKpis.averageFcr) : "N/A",
         `${report.networkKpis.totalFeedConsumedKg.toLocaleString()} kg`,
-        `$${report.networkKpis.totalRevenue.toLocaleString()}`,
+        `₹${report.networkKpis.totalRevenue.toLocaleString()}`,
       ],
     ],
   });
@@ -269,7 +269,7 @@ export function exportReportToPdf(
     farm.avgWeightG != null ? `${farm.avgWeightG} g` : "—",
     farm.avgFcr != null ? String(farm.avgFcr) : "—",
     `${farm.totalFeedConsumedKg.toLocaleString()} kg`,
-    `$${farm.totalRevenue.toLocaleString()}`,
+    `₹${farm.totalRevenue.toLocaleString()}`,
     farm.performanceStatus,
   ]);
 
@@ -327,7 +327,7 @@ export function exportReportToPdf(
       b.latestAvgWeightG != null ? `${b.latestAvgWeightG} g` : "—",
       b.latestFcr != null ? String(b.latestFcr) : "—",
       `${b.totalFeedConsumedKg.toLocaleString()} kg`,
-      `$${b.totalRevenue.toLocaleString()}`,
+      `₹${b.totalRevenue.toLocaleString()}`,
     ]);
 
     autoTable(doc, {
@@ -377,7 +377,7 @@ export function exportReportToPdf(
       b.latestAvgWeightG != null ? `${b.latestAvgWeightG} g` : "—",
       b.latestFcr != null ? String(b.latestFcr) : "—",
       `${b.totalFeedConsumedKg.toLocaleString()} kg`,
-      `$${b.totalRevenue.toLocaleString()}`,
+      `₹${b.totalRevenue.toLocaleString()}`,
     ]);
 
     autoTable(doc, {

@@ -94,4 +94,39 @@ class AuthRegistrationIntegrationTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getRole()).isEqualTo(Role.CEO);
     }
+
+    @Test
+    void loginWithMixedCaseAndWhitespaceSucceeds() {
+        var loginRequest = new com.poultry.poultrymanagement.dto.LoginRequest("  CEO@POULTRY.LOCAL  ", "password123");
+        var response = authController.login(loginRequest);
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getEmail()).isEqualTo("ceo@poultry.local");
+    }
+
+    @Test
+    @Transactional
+    void registrationTrimsAndLowercasesEmailProperly() {
+        String base = "SpacesFarmer" + System.currentTimeMillis();
+        String rawEmail = "  " + base + "@EXAMPLE.COM  ";
+
+        RegisterRequest request = RegisterRequest.builder()
+                .name("  Untrimmed Name  ")
+                .email(rawEmail)
+                .password("password123")
+                .role(Role.FARMER)
+                .phone("  1234567890  ")
+                .build();
+
+        ResponseEntity<AuthResponse> response = authController.register(request);
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getEmail()).isEqualTo(base.toLowerCase() + "@example.com");
+        assertThat(response.getBody().getName()).isEqualTo("Untrimmed Name");
+
+        // Login with uppercase/spaces for this new user must also succeed
+        var loginReq = new com.poultry.poultrymanagement.dto.LoginRequest(" " + base.toUpperCase() + "@example.com ", "password123");
+        var loginRes = authController.login(loginReq);
+        assertThat(loginRes.getStatusCode().is2xxSuccessful()).isTrue();
+    }
 }

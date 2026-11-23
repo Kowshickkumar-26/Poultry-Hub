@@ -28,3 +28,6 @@ Thumbs.db
 # SQL seed/scratch files
 sample_*.sql
 scratch/
+
+# Database backups — never commit to public repo
+database-backup/

@@ -59,6 +59,7 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/actuator/health", "/api/health").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/api/ceo/**").hasRole("CEO")
                 .requestMatchers("/api/farmer/**", "/api/farmers/**").hasAnyRole("FARMER", "CEO")
@@ -103,14 +104,26 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        // Vite dev server ports & local hosts
-        config.setAllowedOriginPatterns(List.of(
+        // Allow Vercel production domain, preview deployments, and local dev environments
+        java.util.List<String> allowedOrigins = new java.util.ArrayList<>(List.of(
+            "https://poultry-management-frontend.vercel.app",
+            "https://*.vercel.app",
             "http://localhost:[*]",
             "http://127.0.0.1:[*]"
         ));
+
+        // Allow additional origins via environment variable (e.g. custom domain)
+        String frontendUrl = System.getenv("FRONTEND_URL");
+        if (frontendUrl != null && !frontendUrl.isBlank()) {
+            allowedOrigins.add(frontendUrl.trim());
+        }
+
+        config.setAllowedOriginPatterns(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
         config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

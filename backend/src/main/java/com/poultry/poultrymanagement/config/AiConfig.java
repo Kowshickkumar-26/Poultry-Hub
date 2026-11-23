@@ -1,11 +1,11 @@
-
 package com.poultry.poultrymanagement.config;
 
+import com.poultry.poultrymanagement.service.ai.ResilientEmbeddingModel;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.model.embedding.onnx.allminilml6v2.AllMiniLmL6V2EmbeddingModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +37,21 @@ public class AiConfig {
     @Value("${ai.timeout-seconds:${AI_TIMEOUT_SECONDS:${LLM_TIMEOUT_SECONDS:60}}}")
     private Long timeoutSeconds;
 
+    @Value("${ai.embedding.provider:${EMBEDDING_PROVIDER:openai}}")
+    private String embeddingProvider;
+
+    @Value("${ai.embedding.api-key:${EMBEDDING_API_KEY:${OPENAI_API_KEY:}}}")
+    private String embeddingApiKey;
+
+    @Value("${ai.embedding.base-url:${EMBEDDING_BASE_URL:}}")
+    private String embeddingBaseUrl;
+
+    @Value("${ai.embedding.model-name:${EMBEDDING_MODEL:text-embedding-3-small}}")
+    private String embeddingModelName;
+
+    @Value("${ai.embedding.dimensions:${EMBEDDING_DIMENSIONS:384}}")
+    private Integer embeddingDimensions;
+
     @Bean
     public ChatLanguageModel chatLanguageModel() {
         String effectiveApiKey = apiKey != null ? apiKey.trim() : "";
@@ -54,7 +69,6 @@ public class AiConfig {
             }
             log.info("🤖 AI Chatbot Engine: Configured Google Gemini (Model: {}, Endpoint: {})", effectiveModel, effectiveBaseUrl);
         } else if ("groq".equalsIgnoreCase(effectiveProvider) || effectiveApiKey.startsWith("gsk_")) {
-            // Normalize Groq URL (e.g. if user entered https://groq.com or https://api.groq.com)
             if (effectiveBaseUrl.isEmpty() || effectiveBaseUrl.contains("api.openai.com") || !effectiveBaseUrl.contains("/openai/v1")) {
                 effectiveBaseUrl = "https://api.groq.com/openai/v1";
             }
@@ -108,15 +122,65 @@ public class AiConfig {
                 .build();
     }
 
+    /**
+     * Memory-Safe Embedding Model:
+     * - Uses remote Embedding API (OpenAI text-embedding-3-small / Gemini text-embedding-004) if configured.
+     * - Falls back to zero-memory lexical feature embeddings if unconfigured or unavailable.
+     * - Eliminates in-process ONNX neural models that exhaust JVM heap space on 512MB RAM containers.
+     */
     @Bean
     public EmbeddingModel embeddingModel() {
-        log.info("🧠 Initializing in-process high-speed ONNX AllMiniLmL6V2EmbeddingModel (runs entirely locally in JVM)");
-        return new AllMiniLmL6V2EmbeddingModel();
+        int dim = (embeddingDimensions != null && embeddingDimensions > 0) ? embeddingDimensions : 384;
+        String key = embeddingApiKey != null ? embeddingApiKey.trim() : "";
+        String prov = embeddingProvider != null ? embeddingProvider.trim().toLowerCase() : "openai";
+        String url = embeddingBaseUrl != null ? embeddingBaseUrl.trim() : "";
+        String model = (embeddingModelName != null && !embeddingModelName.isBlank()) ? embeddingModelName.trim() : "text-embedding-3-small";
+
+        EmbeddingModel remoteModel = null;
+        if (!key.isEmpty() && !"demo-api-key".equalsIgnoreCase(key)) {
+            if ("gemini".equalsIgnoreCase(prov) || "google".equalsIgnoreCase(prov) || key.startsWith("AIza")) {
+                if (url.isEmpty() || url.contains("api.openai.com")) {
+                    url = "https://generativelanguage.googleapis.com/v1beta/openai/";
+                }
+                if ("text-embedding-3-small".equalsIgnoreCase(model)) {
+                    model = "text-embedding-004";
+                }
+            } else {
+                if (url.isEmpty()) {
+                    url = "https://api.openai.com/v1";
+                }
+            }
+
+            try {
+                log.info("🌐 Configuring Remote Embedding Model (Provider: {}, Model: {}, Dimension: {}, BaseUrl: {})",
+                        prov, model, dim, url);
+
+                OpenAiEmbeddingModel.OpenAiEmbeddingModelBuilder builder = OpenAiEmbeddingModel.builder()
+                        .apiKey(key)
+                        .baseUrl(url)
+                        .modelName(model)
+                        .timeout(Duration.ofSeconds(60))
+                        .maxRetries(2);
+
+                if ("text-embedding-3-small".equalsIgnoreCase(model) || "text-embedding-3-large".equalsIgnoreCase(model)) {
+                    builder.dimensions(dim);
+                }
+
+                remoteModel = builder.build();
+                log.info("✅ Remote Embedding Model configured successfully.");
+            } catch (Exception e) {
+                log.warn("⚠️ Could not configure remote embedding client: {}. Falling back to zero-memory adapter.", e.getMessage());
+            }
+        } else {
+            log.info("ℹ️ No remote EMBEDDING_API_KEY detected. Utilizing zero-memory lexical feature embedding adapter (dimension {}).", dim);
+        }
+
+        return new ResilientEmbeddingModel(remoteModel, dim);
     }
 
     @Bean
     public EmbeddingStore<TextSegment> embeddingStore() {
-        log.info("📚 Initializing in-memory embedded vector store for Veterinary Knowledge Base");
+        log.info("📚 Initializing in-memory vector store for Veterinary Knowledge Base");
         return new InMemoryEmbeddingStore<>();
     }
 

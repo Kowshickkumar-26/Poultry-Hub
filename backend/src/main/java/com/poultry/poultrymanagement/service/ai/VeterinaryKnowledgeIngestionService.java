@@ -96,9 +96,24 @@ public class VeterinaryKnowledgeIngestionService {
             return;
         }
 
-        for (TextSegment segment : segments) {
-            Embedding embedding = embeddingModel.embed(segment).content();
-            embeddingStore.add(embedding, segment);
+        try {
+            var embeddingResponse = embeddingModel.embedAll(segments);
+            List<Embedding> embeddings = embeddingResponse.content();
+            for (int i = 0; i < segments.size(); i++) {
+                if (i < embeddings.size()) {
+                    embeddingStore.add(embeddings.get(i), segments.get(i));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Error during batch embedding for '{}': {}. Attempting individual segment fallback.", docName, e.getMessage());
+            for (TextSegment segment : segments) {
+                try {
+                    Embedding embedding = embeddingModel.embed(segment).content();
+                    embeddingStore.add(embedding, segment);
+                } catch (Exception ex) {
+                    log.error("Failed to embed individual segment for '{}': {}", docName, ex.getMessage());
+                }
+            }
         }
 
         // Record or update metadata in MySQL if table exists

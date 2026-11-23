@@ -38,5 +38,6 @@ COPY --from=build /app/target/*.jar app.jar
 ENV PORT=8080
 EXPOSE 8080
 
-# Shell form ensures $PORT is expanded at runtime by Render
-ENTRYPOINT ["sh", "-c", "java -Dserver.port=${PORT:-8080} -jar app.jar"]
+# Container-aware JVM memory settings for Render Free tier (512MB RAM)
+# 65% max heap (~330MB), leaving ~180MB for Metaspace, threads, and OS
+ENTRYPOINT ["sh", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=65.0 -XX:InitialRAMPercentage=40.0 -XX:+ExitOnOutOfMemoryError -Dserver.port=${PORT:-8080} -jar app.jar"]

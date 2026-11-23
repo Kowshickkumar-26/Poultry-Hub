@@ -159,6 +159,9 @@ public class VeterinaryAiChatService {
             for (KnowledgeMatch km : matches) {
                 contextBuilder.append(String.format("--- Topic: %s (Source: %s) ---\n%s\n\n", km.getTopic(), km.getSource(), km.getText()));
             }
+        } else if (queryContext.isClinicalQuery()) {
+            contextBuilder.append("\n=== VETERINARY KNOWLEDGE NOTICE ===\n");
+            contextBuilder.append("Notice: Dynamic vector retrieval returned no specific clinical compendium articles for this query. Provide general, safe, and factual poultry health guidance based on standard avian veterinary principles. Do not invent unverified clinical citations, and explicitly advise physical examination by a licensed avian veterinarian if symptoms are severe.\n\n");
         }
 
         conversationMessages.add(new SystemMessage(contextBuilder.toString()));

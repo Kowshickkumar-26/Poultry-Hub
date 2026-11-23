@@ -6,8 +6,12 @@ WORKDIR /app
 COPY pom.xml .
 COPY src ./src
 
-RUN mvn -B clean package -DskipTests
-
+ RUN for attempt in 1 2 3 4 5; do \
+      mvn -B clean package -DskipTests && exit 0; \
+      echo "Maven download failed. Retrying in 30 seconds..."; \
+      sleep 30; \
+    done; \
+    exit 1
 FROM eclipse-temurin:21-jre
 
 WORKDIR /app

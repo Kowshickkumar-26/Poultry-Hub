@@ -17,7 +17,7 @@ import {
   BarChart3,
   User as UserIcon,
   Package,
-  DollarSign,
+  IndianRupee,
   Receipt,
   Syringe,
 } from "lucide-react";
@@ -43,7 +43,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     { label: "Feed", href: "/farmer/feed", icon: Package },
     { label: "Vaccines", href: "/farmer/vaccines", icon: Syringe },
     { label: "Expenses", href: "/farmer/expenses", icon: Receipt },
-    { label: "Sales", href: "/farmer/sales", icon: DollarSign },
+    { label: "Sales", href: "/farmer/sales", icon: IndianRupee },
     { label: "Reports", href: "/farmer/reports", icon: BarChart3 },
     { label: "Remarks", href: "/farmer/remarks", icon: MessageSquare },
     { label: "End Batch", href: "/farmer/end-batch", icon: StopCircle },

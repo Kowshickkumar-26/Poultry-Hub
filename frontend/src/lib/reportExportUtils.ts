@@ -1,6 +1,9 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { CeoMultiFarmReportResponse } from "@/types/ceoReport";
+import type { BatchResponse } from "@/types/batch";
+import type { FarmResponse } from "@/lib/api/farms";
+import type { FarmerResponse } from "@/types/farmer";
 
 function escapeCsvCell(value: string | number | null | undefined): string {
   if (value === null || value === undefined) {
@@ -413,4 +416,252 @@ export function exportReportToPdf(
   }
 
   doc.save(`ceo-farm-report-${todayStr}.pdf`);
+}
+
+// ==========================================
+// BATCHES LIST EXPORTS (CSV & PDF)
+// ==========================================
+
+export function exportBatchesListToCsv(batches: BatchResponse[], filenamePrefix = "batches-report") {
+  const todayStr = new Date().toISOString().split("T")[0];
+  const rows: string[][] = [
+    ["POULTRY MANAGEMENT SYSTEM - BATCHES DIRECTORY"],
+    ["Generated On", new Date().toLocaleString()],
+    [],
+    ["Batch Code", "Farmer Name", "Farm Facility", "Start Date", "End Date", "Initial Birds", "Status"],
+  ];
+
+  batches.forEach((b) => {
+    rows.push([
+      b.batchCode,
+      b.farmerName || "—",
+      b.farmName || "—",
+      b.startDate ? new Date(b.startDate).toLocaleDateString() : "—",
+      b.endDate ? new Date(b.endDate).toLocaleDateString() : "In Progress",
+      String(b.initialBirds || 0),
+      b.status,
+    ]);
+  });
+
+  const csvContent = "data:text/csv;charset=utf-8," + rows.map((r) => r.map(escapeCsvCell).join(",")).join("\n");
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", `${filenamePrefix}-${todayStr}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+export function exportBatchesListToPdf(batches: BatchResponse[], title = "Batches Directory Report", filenamePrefix = "batches-report") {
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+  const todayStr = new Date().toISOString().split("T")[0];
+  const primaryColor: [number, number, number] = [6, 78, 59];
+
+  doc.setFillColor(...primaryColor);
+  doc.rect(0, 0, 842, 60, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(255, 255, 255);
+  doc.text("POULTRY MANAGEMENT SYSTEM", 40, 28);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(209, 250, 229);
+  doc.text(`${title} • Generated on ${new Date().toLocaleString()}`, 40, 46);
+
+  const tableRows = batches.map((b) => [
+    b.batchCode,
+    b.farmerName || "—",
+    b.farmName || "—",
+    b.startDate ? new Date(b.startDate).toLocaleDateString() : "—",
+    b.endDate ? new Date(b.endDate).toLocaleDateString() : "In Progress",
+    b.initialBirds ? b.initialBirds.toLocaleString() : "0",
+    b.status,
+  ]);
+
+  autoTable(doc, {
+    startY: 80,
+    theme: "striped",
+    headStyles: {
+      fillColor: primaryColor,
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      fontSize: 9,
+    },
+    bodyStyles: {
+      fontSize: 8.5,
+      textColor: [30, 41, 59],
+    },
+    head: [["Batch Code", "Farmer Name", "Farm Facility", "Start Date", "End Date", "Initial Birds", "Status"]],
+    body: tableRows.length > 0 ? tableRows : [["No batches found", "", "", "", "", "", ""]],
+  });
+
+  doc.save(`${filenamePrefix}-${todayStr}.pdf`);
+}
+
+// ==========================================
+// FARMS LIST EXPORTS (CSV & PDF)
+// ==========================================
+
+export function exportFarmsListToCsv(farms: FarmResponse[], filenamePrefix = "farms-directory") {
+  const todayStr = new Date().toISOString().split("T")[0];
+  const rows: string[][] = [
+    ["POULTRY MANAGEMENT SYSTEM - FARMS DIRECTORY"],
+    ["Generated On", new Date().toLocaleString()],
+    [],
+    ["Farm ID", "Farm Name", "Location", "Owner / Operator", "Facility Description", "Created Date"],
+  ];
+
+  farms.forEach((f) => {
+    rows.push([
+      String(f.id),
+      f.name,
+      f.location || "—",
+      f.ownerName || "—",
+      f.description || "—",
+      f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "—",
+    ]);
+  });
+
+  const csvContent = "data:text/csv;charset=utf-8," + rows.map((r) => r.map(escapeCsvCell).join(",")).join("\n");
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", `${filenamePrefix}-${todayStr}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+export function exportFarmsListToPdf(farms: FarmResponse[], title = "Farms Directory Report", filenamePrefix = "farms-directory") {
+  const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+  const todayStr = new Date().toISOString().split("T")[0];
+  const primaryColor: [number, number, number] = [6, 78, 59];
+
+  doc.setFillColor(...primaryColor);
+  doc.rect(0, 0, 595, 60, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(255, 255, 255);
+  doc.text("POULTRY MANAGEMENT SYSTEM", 40, 28);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(209, 250, 229);
+  doc.text(`${title} • Generated on ${new Date().toLocaleString()}`, 40, 46);
+
+  const tableRows = farms.map((f) => [
+    `#${f.id}`,
+    f.name,
+    f.location || "—",
+    f.ownerName || "—",
+    f.description || "—",
+  ]);
+
+  autoTable(doc, {
+    startY: 80,
+    theme: "striped",
+    headStyles: {
+      fillColor: primaryColor,
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      fontSize: 9,
+    },
+    bodyStyles: {
+      fontSize: 8.5,
+      textColor: [30, 41, 59],
+    },
+    head: [["ID", "Farm Facility Name", "Location", "Owner / Operator", "Description"]],
+    body: tableRows.length > 0 ? tableRows : [["No farms found", "", "", "", ""]],
+  });
+
+  doc.save(`${filenamePrefix}-${todayStr}.pdf`);
+}
+
+// ==========================================
+// FARMER & FARM NETWORK EXPORTS (CSV & PDF)
+// ==========================================
+
+export function exportFarmersListToCsv(farmers: FarmerResponse[], filenamePrefix = "farmer-network-report") {
+  const todayStr = new Date().toISOString().split("T")[0];
+  const rows: string[][] = [
+    ["POULTRY MANAGEMENT SYSTEM - FARMER & FARM NETWORK DIRECTORY"],
+    ["Generated On", new Date().toLocaleString()],
+    [],
+    ["Farmer Name", "Email", "Phone", "Farm Facility", "Location", "Current Batch", "Live Birds", "Initial Birds", "Status"],
+  ];
+
+  farmers.forEach((f) => {
+    rows.push([
+      f.userName,
+      f.userEmail,
+      f.userPhone || "—",
+      f.farmName || "—",
+      f.farmLocation || "—",
+      f.activeBatchCode || "None",
+      f.remainingBirds != null ? String(f.remainingBirds) : "—",
+      f.initialBirds != null ? String(f.initialBirds) : "—",
+      f.activeBatchStatus || "IDLE",
+    ]);
+  });
+
+  const csvContent = "data:text/csv;charset=utf-8," + rows.map((r) => r.map(escapeCsvCell).join(",")).join("\n");
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", `${filenamePrefix}-${todayStr}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+export function exportFarmersListToPdf(farmers: FarmerResponse[], title = "Farmer & Farm Network Directory", filenamePrefix = "farmer-network-report") {
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+  const todayStr = new Date().toISOString().split("T")[0];
+  const primaryColor: [number, number, number] = [6, 78, 59];
+
+  doc.setFillColor(...primaryColor);
+  doc.rect(0, 0, 842, 60, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(255, 255, 255);
+  doc.text("POULTRY MANAGEMENT SYSTEM", 40, 28);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(209, 250, 229);
+  doc.text(`${title} • Generated on ${new Date().toLocaleString()}`, 40, 46);
+
+  const tableRows = farmers.map((f) => [
+    f.userName,
+    f.userPhone || f.userEmail,
+    f.farmName || "—",
+    f.farmLocation || "—",
+    f.activeBatchCode || "None",
+    f.remainingBirds != null ? `${f.remainingBirds.toLocaleString()} / ${f.initialBirds?.toLocaleString() || "—"}` : "—",
+    f.activeBatchStatus || "IDLE",
+  ]);
+
+  autoTable(doc, {
+    startY: 80,
+    theme: "striped",
+    headStyles: {
+      fillColor: primaryColor,
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      fontSize: 9,
+    },
+    bodyStyles: {
+      fontSize: 8.5,
+      textColor: [30, 41, 59],
+    },
+    head: [["Farmer", "Contact", "Farm Facility", "Location", "Current Batch", "Birds (Live/Initial)", "Status"]],
+    body: tableRows.length > 0 ? tableRows : [["No farmers found", "", "", "", "", "", ""]],
+  });
+
+  doc.save(`${filenamePrefix}-${todayStr}.pdf`);
 }

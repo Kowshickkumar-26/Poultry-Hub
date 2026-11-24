@@ -1,11 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { getAllFarms } from "@/lib/api/farms";
+import { exportFarmsListToCsv, exportFarmsListToPdf } from "@/lib/reportExportUtils";
 import { AppLayout } from "@/components/AppLayout";
 import { LoadingState } from "@/components/LoadingState";
 import { ErrorState } from "@/components/ErrorState";
 import { EmptyState } from "@/components/EmptyState";
 import { Card } from "@/components/ui/card";
-import { MapPin } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { MapPin, FileSpreadsheet, FileText } from "lucide-react";
 
 export default function CEOFarmsPage() {
   const {
@@ -53,6 +55,35 @@ export default function CEOFarmsPage() {
   return (
     <AppLayout title="Farms" breadcrumb={[{ label: "Farms" }]}>
       <div className="space-y-6 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">Registered Farm Facilities</h2>
+            <p className="text-xs text-slate-500">All registered poultry farms across the network.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => exportFarmsListToCsv(farms)}
+              disabled={farms.length === 0}
+              className="h-8 text-xs font-semibold rounded-xl text-slate-700 hover:bg-slate-50 border-slate-300"
+            >
+              <FileSpreadsheet size={13} className="mr-1.5 text-emerald-700" />
+              Export CSV
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => exportFarmsListToPdf(farms)}
+              disabled={farms.length === 0}
+              className="h-8 text-xs font-semibold rounded-xl text-slate-700 hover:bg-slate-50 border-slate-300"
+            >
+              <FileText size={13} className="mr-1.5 text-rose-700" />
+              Export PDF
+            </Button>
+          </div>
+        </div>
+
         <Card>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

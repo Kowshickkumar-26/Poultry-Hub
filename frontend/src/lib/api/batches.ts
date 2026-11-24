@@ -41,29 +41,60 @@ export async function getCompletedBatches(): Promise<BatchResponse[]> {
 }
 
 export async function downloadBatchClosingReport(batchId: number, batchCode?: string): Promise<void> {
-  const response = await api.get(`/api/batches/${batchId}/closing-report`, {
-    responseType: "blob",
-  });
+  try {
+    const response = await api.get(`/api/batches/${batchId}/closing-report`, {
+      responseType: "blob",
+    });
 
-  // Extract filename from content-disposition header if available
-  let filename = batchCode ? `Batch-${batchCode}-Closing-Report.pdf` : `Batch-${batchId}-Closing-Report.pdf`;
-  const disposition = response.headers["content-disposition"];
-  if (disposition) {
-    const filenameMatch = disposition.match(/filename="?([^";]+)"?/);
-    if (filenameMatch && filenameMatch[1]) {
-      filename = filenameMatch[1].trim();
+    // Check if the response was actually JSON error returned with blob type
+    if (response.data && (response.data as Blob).type === "application/json") {
+      const text = await (response.data as Blob).text();
+      let errorMsg = "Failed to generate Batch Report PDF.";
+      try {
+        const json = JSON.parse(text);
+        errorMsg = json.message || json.error || errorMsg;
+      } catch {
+        // use fallback
+      }
+      throw new Error(errorMsg);
     }
-  }
 
-  // Trigger browser download via object URL
-  const blob = new Blob([response.data], { type: "application/pdf" });
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.setAttribute("download", filename);
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.URL.revokeObjectURL(url);
+    // Extract filename from content-disposition header if available
+    let filename = batchCode ? `Batch-${batchCode}-Report.pdf` : `Batch-${batchId}-Report.pdf`;
+    const disposition = response.headers["content-disposition"];
+    if (disposition) {
+      const filenameMatch = disposition.match(/filename="?([^";]+)"?/);
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1].trim();
+      }
+    }
+
+    // Trigger browser download via object URL
+    const blob = new Blob([response.data], { type: "application/pdf" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "response" in err) {
+      const res = (err as { response?: { data?: unknown } }).response;
+      if (res?.data instanceof Blob) {
+        try {
+          const text = await res.data.text();
+          const json = JSON.parse(text);
+          throw new Error(json.message || json.error || "Failed to generate Batch Report PDF.");
+        } catch (parseErr) {
+          if (parseErr instanceof Error && parseErr.message !== "Failed to generate Batch Report PDF.") {
+            throw parseErr;
+          }
+        }
+      }
+    }
+    throw err;
+  }
 }
 

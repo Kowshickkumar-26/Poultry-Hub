@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { saleSchema, type SaleFormValues } from "@/lib/validation/batchModules";
 import {
-  DollarSign,
+  IndianRupee,
   Truck,
   CheckCircle2,
   AlertCircle,
@@ -116,7 +116,7 @@ export default function FarmerSalesPage() {
       <div className="space-y-8 p-6 md:p-8">
         {!activeBatch ? (
           <Card className="rounded-2xl border-slate-200 p-8 text-center shadow-sm">
-            <DollarSign className="mx-auto h-12 w-12 text-slate-400" />
+            <IndianRupee className="mx-auto h-12 w-12 text-slate-400" />
             <h2 className="mt-3 text-xl font-bold text-slate-900">No Active Batch</h2>
             <p className="mt-1 text-sm text-slate-500">
               Create an active flock batch from the Home Dashboard before recording sales.
@@ -152,7 +152,7 @@ export default function FarmerSalesPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Sales Revenue</span>
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-                    <DollarSign size={18} />
+                    <IndianRupee size={18} />
                   </div>
                 </div>
                 <p className="mt-3 text-2xl font-black text-emerald-700">₹{totalRevenue.toLocaleString()}</p>

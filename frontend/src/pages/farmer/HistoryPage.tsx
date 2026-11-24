@@ -40,13 +40,15 @@ export default function FarmerHistoryPage() {
     try {
       await downloadBatchClosingReport(batch.id, batch.batchCode);
     } catch (err: unknown) {
-      console.error("Failed to download batch closing report", err);
+      console.error("Failed to download batch report", err);
       const message =
-        err && typeof err === "object" && "response" in err
+        err instanceof Error
+          ? err.message
+          : err && typeof err === "object" && "response" in err
           ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
           : undefined;
       setDownloadError(
-        message || "Failed to generate Batch Closing Report PDF. Please try again."
+        message || "Failed to generate Batch Report PDF. Please try again."
       );
     } finally {
       setDownloadingBatchId(null);

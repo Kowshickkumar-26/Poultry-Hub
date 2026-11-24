@@ -194,10 +194,11 @@ class BatchClosingReportIntegrationTest {
                 .build();
         remarkService.addRemark(batchId, rem1, farmer1UserId);
 
-        // 8. Attempt to generate Closing Report on ACTIVE batch -> Expect 409 Conflict
-        assertThatThrownBy(() -> batchClosingReportPdfService.generateClosingReport(batchId, farmer1UserId, Role.FARMER))
-                .isInstanceOf(BatchNotEligibleForClosingReportException.class)
-                .hasMessageContaining("Closing reports can only be generated for COMPLETED batches");
+        // 8. Generate Report on ACTIVE batch -> returns valid interim performance PDF bytes
+        byte[] activePdfBytes = batchClosingReportPdfService.generateClosingReport(batchId, farmer1UserId, Role.FARMER);
+        assertThat(activePdfBytes).isNotEmpty();
+        String activePdfHeader = new String(activePdfBytes, 0, Math.min(activePdfBytes.length, 5));
+        assertThat(activePdfHeader).isEqualTo("%PDF-");
 
         // 9. End the batch -> status becomes COMPLETED
         batchService.endBatch(batchId, farmer1UserId);

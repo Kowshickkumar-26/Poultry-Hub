@@ -80,13 +80,8 @@ public class BatchClosingReportPdfService {
         // 1. Authoritative access check & batch retrieval
         Batch batch = batchService.getAccessibleBatch(batchId, loggedInUserId, role);
 
-        // 2. Validate batch completion status
-        if (batch.getStatus() != BatchStatus.COMPLETED) {
-            throw new BatchNotEligibleForClosingReportException(
-                    String.format("Batch %s is currently %s. Closing reports can only be generated for COMPLETED batches.",
-                            batch.getBatchCode(), batch.getStatus())
-            );
-        }
+        // 2. Determine batch completion status (both COMPLETED and ACTIVE batches can be reported)
+        boolean isCompleted = batch.getStatus() == BatchStatus.COMPLETED;
 
         // 3. Fetch all authoritative batch records
         List<DailyRecord> dailyRecords = dailyRecordRepository.findByBatchIdOrderByRecordDateAsc(batchId);
@@ -151,9 +146,13 @@ public class BatchClosingReportPdfService {
             document.open();
 
             // ==========================================
-            // PAGE 1: BATCH CLOSING SUMMARY
+            // PAGE 1: BATCH SUMMARY
             // ==========================================
-            addHeaderBanner(document, "BATCH CLOSING REPORT", "Authoritative Lifecycle & Production Completion Summary");
+            String reportTitle = isCompleted ? "BATCH CLOSING REPORT" : "BATCH PERFORMANCE REPORT";
+            String reportSubtitle = isCompleted
+                    ? "Authoritative Lifecycle & Production Completion Summary"
+                    : "Real-time Telemetry & Active Lifecycle Production Summary";
+            addHeaderBanner(document, reportTitle, reportSubtitle);
 
             addBatchInfoSection(document, batch, durationDays);
 
@@ -161,7 +160,7 @@ public class BatchClosingReportPdfService {
                     totalBirdsSold, finalAvgWeightG, totalFeedConsumedKg, finalFcr, durationDays);
 
             addOutcomeSummaryTable(document, initialBirds, totalMortality, mortalityPct, finalRemainingBirds,
-                    totalBirdsSold, finalAvgWeightG, totalFeedConsumedKg, finalFcr, durationDays);
+                    totalBirdsSold, finalAvgWeightG, totalFeedConsumedKg, finalFcr, durationDays, isCompleted);
 
             // ==========================================
             // PAGE 2: SALES REPORT
@@ -268,7 +267,9 @@ public class BatchClosingReportPdfService {
                 ? batch.getFarmer().getUser().getName() : "N/A";
         String farmName = batch.getFarm() != null ? batch.getFarm().getName() : "N/A";
         String startDate = batch.getStartDate() != null ? batch.getStartDate().format(DATE_FMT) : "N/A";
-        String endDate = batch.getEndDate() != null ? batch.getEndDate().format(DATE_FMT) : "N/A";
+        String endDate = batch.getEndDate() != null
+                ? batch.getEndDate().format(DATE_FMT)
+                : (batch.getStatus() == BatchStatus.ACTIVE ? "In Progress (Active)" : "N/A");
         String reportDate = LocalDateTime.now().format(TIMESTAMP_FMT);
 
         addInfoCell(table, "Batch Code:", batch.getBatchCode(), true);
@@ -375,9 +376,10 @@ public class BatchClosingReportPdfService {
             BigDecimal finalAvgWeightG,
             BigDecimal totalFeedConsumedKg,
             BigDecimal finalFcr,
-            long durationDays
+            long durationDays,
+            boolean isCompleted
     ) throws DocumentException {
-        Paragraph heading = new Paragraph("FINAL BATCH OUTCOME BREAKDOWN", FONT_SECTION_TITLE);
+        Paragraph heading = new Paragraph(isCompleted ? "FINAL BATCH OUTCOME BREAKDOWN" : "CURRENT BATCH OUTCOME BREAKDOWN", FONT_SECTION_TITLE);
         heading.setSpacingBefore(8);
         heading.setSpacingAfter(6);
         document.add(heading);
@@ -391,12 +393,12 @@ public class BatchClosingReportPdfService {
 
         addTableRow(table, "Initial Chicks Placed", NUMBER_FMT.format(initialBirds) + " birds", false);
         addTableRow(table, "Cumulative Flock Mortality", NUMBER_FMT.format(totalMortality) + " birds (" + DECIMAL_FMT.format(mortalityPct) + "%)", true);
-        addTableRow(table, "Final Live Birds at Batch Close", NUMBER_FMT.format(finalRemainingBirds) + " birds", false);
-        addTableRow(table, "Total Birds Marketed / Sold", NUMBER_FMT.format(totalBirdsSold) + " birds", true);
-        addTableRow(table, "Final Average Harvest Weight", finalAvgWeightG != null ? DECIMAL_FMT.format(finalAvgWeightG.divide(BigDecimal.valueOf(1000), 2, RoundingMode.HALF_UP)) + " kg (" + NUMBER_FMT.format(finalAvgWeightG) + " g)" : "N/A", false);
+        addTableRow(table, isCompleted ? "Final Live Birds at Batch Close" : "Current Live Birds Remaining", NUMBER_FMT.format(finalRemainingBirds) + " birds", false);
+        addTableRow(table, isCompleted ? "Total Birds Marketed / Sold" : "Birds Marketed / Lifted to Date", NUMBER_FMT.format(totalBirdsSold) + " birds", true);
+        addTableRow(table, isCompleted ? "Final Average Harvest Weight" : "Latest Sample Average Weight", finalAvgWeightG != null ? DECIMAL_FMT.format(finalAvgWeightG.divide(BigDecimal.valueOf(1000), 2, RoundingMode.HALF_UP)) + " kg (" + NUMBER_FMT.format(finalAvgWeightG) + " g)" : "N/A", false);
         addTableRow(table, "Total Feed Consumed", DECIMAL_FMT.format(totalFeedConsumedKg) + " kg", true);
-        addTableRow(table, "Authoritative Final FCR", finalFcr != null ? FCR_FMT.format(finalFcr) : "N/A", false);
-        addTableRow(table, "Total Batch Rearing Cycle", durationDays + " Days", true);
+        addTableRow(table, isCompleted ? "Authoritative Final FCR" : "Current Cumulative FCR", finalFcr != null ? FCR_FMT.format(finalFcr) : "N/A", false);
+        addTableRow(table, isCompleted ? "Total Batch Rearing Cycle" : "Current Days in Production", durationDays + " Days", true);
 
         document.add(table);
     }
@@ -834,7 +836,7 @@ public class BatchClosingReportPdfService {
                 cb.beginText();
                 cb.setFontAndSize(baseFont, 7.5f);
                 cb.setColorFill(TEXT_MUTED);
-                cb.showTextAligned(Element.ALIGN_LEFT, "Poultry Management System — Batch " + batchCode + " Closing Report", 36, document.top() + 10, 0);
+                cb.showTextAligned(Element.ALIGN_LEFT, "Poultry Management System — Batch " + batchCode + " Report", 36, document.top() + 10, 0);
                 cb.endText();
 
                 // Thin top line

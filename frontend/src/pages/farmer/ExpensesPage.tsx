@@ -42,7 +42,7 @@ export default function FarmerExpensesPage() {
               </Card>
               <Card className="p-4">
                 <p className="text-sm text-muted-foreground">Total spent</p>
-                <p className="mt-2 text-2xl font-bold">KES {totalExpenses.toLocaleString()}</p>
+                <p className="mt-2 text-2xl font-bold">₹{totalExpenses.toLocaleString()}</p>
               </Card>
               <Card className="p-4">
                 <p className="text-sm text-muted-foreground">Largest category</p>
@@ -60,7 +60,7 @@ export default function FarmerExpensesPage() {
                     {breakdown.map((item) => (
                       <div key={item.category} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
                         <span>{item.category}</span>
-                        <span className="font-semibold">KES {item.total.toLocaleString()}</span>
+                        <span className="font-semibold">₹{item.total.toLocaleString()}</span>
                       </div>
                     ))}
                   </div>
@@ -77,7 +77,7 @@ export default function FarmerExpensesPage() {
                       <div key={item.id} className="rounded-lg border p-3">
                         <div className="flex items-center justify-between">
                           <span className="font-medium">{item.category}</span>
-                          <span className="font-semibold">KES {item.amount.toLocaleString()}</span>
+                          <span className="font-semibold">₹{item.amount.toLocaleString()}</span>
                         </div>
                         <p className="mt-1 text-sm text-muted-foreground">{item.expenseDate}</p>
                         <p className="mt-1 text-sm">{item.description ?? "No description"}</p>

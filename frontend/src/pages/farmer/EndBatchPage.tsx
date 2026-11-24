@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import {
   StopCircle,
   AlertTriangle,
-  DollarSign,
+  IndianRupee,
   Activity,
   ShieldAlert,
   CheckCircle2,
@@ -417,7 +417,7 @@ export default function FarmerEndBatchPage() {
               {/* Financial & Sales Summary Card */}
               <Card className="rounded-2xl border-slate-200 bg-white p-6 shadow-sm">
                 <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-800 border-b border-slate-100 pb-3">
-                  <DollarSign size={18} className="text-blue-600" /> Financial & Sales Summary
+                  <IndianRupee size={18} className="text-blue-600" /> Financial & Sales Summary
                 </h3>
 
                 <div className="mt-4 space-y-3.5 text-sm">

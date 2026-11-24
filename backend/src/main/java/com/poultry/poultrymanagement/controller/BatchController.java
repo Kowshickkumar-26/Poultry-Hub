@@ -2,6 +2,7 @@ package com.poultry.poultrymanagement.controller;
 
 import com.poultry.poultrymanagement.dto.BatchRequest;
 import com.poultry.poultrymanagement.dto.BatchResponse;
+import com.poultry.poultrymanagement.entity.BatchStatus;
 import com.poultry.poultrymanagement.security.UserPrincipal;
 import com.poultry.poultrymanagement.service.BatchService;
 import com.poultry.poultrymanagement.service.report.BatchClosingReportPdfService;
@@ -94,7 +95,8 @@ public class BatchController {
                 principal.getUser().getRole()
         );
 
-        String filename = String.format("Batch-%s-Closing-Report.pdf", batch.getBatchCode());
+        String reportType = batch.getStatus() == BatchStatus.COMPLETED ? "Closing" : "Performance";
+        String filename = String.format("Batch-%s-%s-Report.pdf", batch.getBatchCode(), reportType);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")

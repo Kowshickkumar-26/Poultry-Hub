@@ -49,12 +49,14 @@ export function CEOFarmerDetailsModal({
     try {
       await downloadBatchClosingReport(batchId, batchCode);
     } catch (err: unknown) {
-      console.error("Failed to download closing report", err);
+      console.error("Failed to download report", err);
       const message =
-        err && typeof err === "object" && "response" in err
+        err instanceof Error
+          ? err.message
+          : err && typeof err === "object" && "response" in err
           ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
           : undefined;
-      setDownloadError(message || "Failed to download Closing Report PDF.");
+      setDownloadError(message || "Failed to download Report PDF.");
     } finally {
       setDownloadingBatchId(null);
     }
@@ -242,9 +244,30 @@ export function CEOFarmerDetailsModal({
                   </div>
 
                   {farmer.activeBatchId ? (
-                    <span className="rounded-full bg-emerald-100 px-3 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-200">
-                      {farmer.activeBatchStatus} • Day {getBatchAge(farmer.activeBatchStartDate)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-emerald-100 px-3 py-0.5 text-xs font-bold text-emerald-800 border border-emerald-200">
+                        {farmer.activeBatchStatus} • Day {getBatchAge(farmer.activeBatchStartDate)}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDownloadReport(farmer.activeBatchId!, farmer.activeBatchCode)}
+                        disabled={downloadingBatchId === farmer.activeBatchId}
+                        className="h-7 rounded-lg border-emerald-300 bg-emerald-50 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400"
+                      >
+                        {downloadingBatchId === farmer.activeBatchId ? (
+                          <>
+                            <Loader2 size={12} className="animate-spin mr-1" />
+                            <span>Downloading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <FileText size={12} className="mr-1 text-emerald-700" />
+                            <span>Download PDF Report</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   ) : (
                     <span className="rounded-full bg-slate-100 px-3 py-0.5 text-xs font-bold text-slate-600">
                       NO ACTIVE BATCH
@@ -355,7 +378,7 @@ export function CEOFarmerDetailsModal({
                               </span>
                             </td>
                             <td className="px-4 py-3 text-center">
-                              {batch.status === "COMPLETED" ? (
+                              {batch.id ? (
                                 <Button
                                   onClick={() => handleDownloadReport(batch.id, batch.batchCode)}
                                   disabled={downloadingBatchId === batch.id}
@@ -371,12 +394,12 @@ export function CEOFarmerDetailsModal({
                                   ) : (
                                     <>
                                       <FileText size={12} className="mr-1 text-emerald-700" />
-                                      <span>PDF Report</span>
+                                      <span>{batch.status === "COMPLETED" ? "Closing Report" : "PDF Report"}</span>
                                     </>
                                   )}
                                 </Button>
                               ) : (
-                                <span className="text-slate-400 text-[11px]">In Progress</span>
+                                <span className="text-slate-400 text-[11px]">—</span>
                               )}
                             </td>
                           </tr>

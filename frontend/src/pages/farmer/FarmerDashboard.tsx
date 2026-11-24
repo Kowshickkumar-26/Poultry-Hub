@@ -24,7 +24,7 @@ import {
   PlusCircle,
   TrendingUp,
   Activity,
-  DollarSign,
+  IndianRupee,
   Package,
   Calendar,
   AlertCircle,
@@ -540,7 +540,7 @@ export default function FarmerDashboard() {
                     variant="outline"
                     className="flex h-auto flex-col items-center gap-1 rounded-xl border-slate-200 bg-white p-2.5 hover:border-blue-500 hover:bg-blue-50/50"
                   >
-                    <DollarSign className="h-4 w-4 text-blue-600" />
+                    <IndianRupee className="h-4 w-4 text-blue-600" />
                     <span className="text-xs font-bold text-slate-800">Record Sale</span>
                   </Button>
 
@@ -779,7 +779,7 @@ export default function FarmerDashboard() {
                     <p className="text-[11px] text-slate-500">Live batch revenue & expenses</p>
                   </div>
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-                    <DollarSign size={16} />
+                    <IndianRupee size={16} />
                   </div>
                 </div>
 

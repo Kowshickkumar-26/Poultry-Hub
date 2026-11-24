@@ -20,7 +20,7 @@ import {
   Bird,
   AlertOctagon,
   Scale,
-  DollarSign,
+  IndianRupee,
   Filter,
   RotateCcw,
   Search,
@@ -414,7 +414,7 @@ export default function CEOReportsPage() {
                   title="Gross Revenue"
                   value={`₹${report.networkKpis.totalRevenue.toLocaleString()}`}
                   subtitle="From completed sales"
-                  icon={<DollarSign size={20} />}
+                  icon={<IndianRupee size={20} />}
                 />
               </div>
             </div>

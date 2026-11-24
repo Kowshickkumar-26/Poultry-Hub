@@ -16,7 +16,7 @@ import {
   Activity,
   AlertCircle,
   Package,
-  DollarSign,
+  IndianRupee,
   Scale,
 } from "lucide-react";
 
@@ -245,7 +245,7 @@ export default function FarmerReportsPage() {
                     Net Revenue Margin
                   </span>
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-                    <DollarSign className="h-5 w-5" />
+                    <IndianRupee className="h-5 w-5" />
                   </div>
                 </div>
                 <div className="mt-3">

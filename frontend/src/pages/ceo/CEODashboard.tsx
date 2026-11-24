@@ -1,9 +1,15 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { getActiveBatches, getCompletedBatches } from "@/lib/api/batches";
+import { getActiveBatches, getCompletedBatches, downloadBatchClosingReport } from "@/lib/api/batches";
 import { getAllFarmers } from "@/lib/api/farmers";
 import { getAllFarms } from "@/lib/api/farms";
+import {
+  exportBatchesListToCsv,
+  exportBatchesListToPdf,
+  exportFarmersListToCsv,
+  exportFarmersListToPdf,
+} from "@/lib/reportExportUtils";
 import { AppLayout } from "@/components/AppLayout";
 import { Card } from "@/components/ui/card";
 import { DashboardCard } from "@/components/DashboardCard";
@@ -24,11 +30,38 @@ import {
   ChevronRight,
   Eye,
   Bird,
+  Download,
+  FileText,
+  FileSpreadsheet,
+  Loader2,
 } from "lucide-react";
 
 export default function CEODashboard() {
   const navigate = useNavigate();
   const [selectedFarmerId, setSelectedFarmerId] = useState<number | null>(null);
+  const [downloadingBatchId, setDownloadingBatchId] = useState<number | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const handleDownloadBatchReport = async (batchId: number, batchCode?: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (downloadingBatchId !== null) return;
+    setDownloadingBatchId(batchId);
+    setDownloadError(null);
+    try {
+      await downloadBatchClosingReport(batchId, batchCode);
+    } catch (err: unknown) {
+      console.error("Failed to download batch report", err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : err && typeof err === "object" && "response" in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      setDownloadError(message || "Failed to generate Batch Report PDF. Please try again.");
+    } finally {
+      setDownloadingBatchId(null);
+    }
+  };
 
   const {
     data: activeBatches = [],
@@ -100,6 +133,19 @@ export default function CEODashboard() {
           </p>
         </div>
 
+        {/* Global Error Banner */}
+        {downloadError && (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-800 flex items-center justify-between shadow-xs">
+            <span>{downloadError}</span>
+            <button
+              onClick={() => setDownloadError(null)}
+              className="rounded-lg p-1 text-rose-500 hover:bg-rose-100 hover:text-rose-800 transition"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* 5 Summary Cards Grid */}
         {isLoading ? (
           <LoadingState message="Loading statistics..." />
@@ -142,19 +188,41 @@ export default function CEODashboard() {
 
         {/* Farmer / Farm Network Overview Section */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 className="text-lg font-bold text-slate-900">Farmer & Farm Network Overview</h3>
               <p className="text-xs text-slate-500">
                 Click any farmer row to view complete profile, farm facilities, and historical flock data.
               </p>
             </div>
-            <button
-              onClick={() => navigate("/ceo/farmers")}
-              className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1"
-            >
-              View Full Directory <ChevronRight size={14} />
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => exportFarmersListToCsv(farmers)}
+                disabled={farmers.length === 0}
+                className="h-8 text-xs font-semibold rounded-xl text-slate-700 hover:bg-slate-50 border-slate-300"
+              >
+                <FileSpreadsheet size={13} className="mr-1.5 text-emerald-700" />
+                Export CSV
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => exportFarmersListToPdf(farmers)}
+                disabled={farmers.length === 0}
+                className="h-8 text-xs font-semibold rounded-xl text-slate-700 hover:bg-slate-50 border-slate-300"
+              >
+                <FileText size={13} className="mr-1.5 text-rose-700" />
+                Export PDF
+              </Button>
+              <button
+                onClick={() => navigate("/ceo/farmers")}
+                className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1 ml-1"
+              >
+                View Full Directory <ChevronRight size={14} />
+              </button>
+            </div>
           </div>
 
           {farmers.length === 0 ? (
@@ -242,17 +310,36 @@ export default function CEODashboard() {
                         </td>
 
                         <td className="px-5 py-3.5 text-center">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e: React.MouseEvent) => {
-                              e.stopPropagation();
-                              setSelectedFarmerId(farmer.id);
-                            }}
-                            className="rounded-xl text-[11px] h-7 px-2.5 text-emerald-800 hover:bg-emerald-50 hover:border-emerald-300"
-                          >
-                            <Eye size={12} className="mr-1" /> View
-                          </Button>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e: React.MouseEvent) => {
+                                e.stopPropagation();
+                                setSelectedFarmerId(farmer.id);
+                              }}
+                              className="rounded-xl text-[11px] h-7 px-2.5 text-emerald-800 hover:bg-emerald-50 hover:border-emerald-300"
+                            >
+                              <Eye size={12} className="mr-1" /> View
+                            </Button>
+                            {farmer.activeBatchId && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => handleDownloadBatchReport(farmer.activeBatchId!, farmer.activeBatchCode, e)}
+                                disabled={downloadingBatchId === farmer.activeBatchId}
+                                className="rounded-xl text-[11px] h-7 px-2 border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400"
+                              >
+                                {downloadingBatchId === farmer.activeBatchId ? (
+                                  <Loader2 size={12} className="animate-spin" />
+                                ) : (
+                                  <>
+                                    <Download size={12} className="mr-1 text-emerald-700" /> PDF
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -265,14 +352,41 @@ export default function CEODashboard() {
 
         {/* Active Batches Section */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-slate-900">Active Batches Live Feed</h3>
-            <button
-              onClick={() => navigate("/ceo/active-batches")}
-              className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1"
-            >
-              View All Batches <ChevronRight size={14} />
-            </button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Active Batches Live Feed</h3>
+              <p className="text-xs text-slate-500">
+                Real-time active batch lifecycle, chick placement, and live flock status.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => exportBatchesListToCsv(activeBatches, "active-batches")}
+                disabled={activeBatches.length === 0}
+                className="h-8 text-xs font-semibold rounded-xl text-slate-700 hover:bg-slate-50 border-slate-300"
+              >
+                <FileSpreadsheet size={13} className="mr-1.5 text-emerald-700" />
+                Export CSV
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => exportBatchesListToPdf(activeBatches, "Active Batches Live Report", "active-batches")}
+                disabled={activeBatches.length === 0}
+                className="h-8 text-xs font-semibold rounded-xl text-slate-700 hover:bg-slate-50 border-slate-300"
+              >
+                <FileText size={13} className="mr-1.5 text-rose-700" />
+                Export PDF
+              </Button>
+              <button
+                onClick={() => navigate("/ceo/active-batches")}
+                className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1 ml-1"
+              >
+                View All Batches <ChevronRight size={14} />
+              </button>
+            </div>
           </div>
 
           {activeBatches.length === 0 ? (
@@ -293,6 +407,7 @@ export default function CEODashboard() {
                       <th className="px-5 py-3.5">Start Date</th>
                       <th className="px-5 py-3.5 text-right">Initial Birds</th>
                       <th className="px-5 py-3.5 text-center">Status</th>
+                      <th className="px-5 py-3.5 text-center">Download Report</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-800">
@@ -311,6 +426,27 @@ export default function CEODashboard() {
                         </td>
                         <td className="px-5 py-3.5 text-center">
                           <StatusBadge status={batch.status} />
+                        </td>
+                        <td className="px-5 py-3.5 text-center">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDownloadBatchReport(batch.id, batch.batchCode)}
+                            disabled={downloadingBatchId === batch.id}
+                            className="h-7 rounded-xl border-emerald-300 bg-emerald-50 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400"
+                          >
+                            {downloadingBatchId === batch.id ? (
+                              <>
+                                <Loader2 size={12} className="animate-spin mr-1" />
+                                <span>Downloading...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Download size={12} className="mr-1 text-emerald-700" />
+                                <span>Download PDF</span>
+                              </>
+                            )}
+                          </Button>
                         </td>
                       </tr>
                     ))}
